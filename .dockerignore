@@ -1,0 +1,8 @@
+SkyRL/
+evaluation_results/
+data/
+logs/
+submissions/
+.venv/
+__pycache__/
+*.pyc

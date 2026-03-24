@@ -24,7 +24,6 @@ class DSPredictReActAgent(ReActDSAgent):
         self.submission_dir = kwargs.get('submission_dir', '')
         # Optional HTTP client timeout (seconds) for code execution manager
         self.time_out = kwargs.get('time_out')
-        self.time_out = 60
 
     def solve_task(self, sample: Dict[str, Any], **kwargs) -> Dict[str, Any]:
         """
@@ -67,7 +66,13 @@ class DSPredictReActAgent(ReActDSAgent):
             # Initialize environment
             conversation, _ = env.init(conversation, **extras)
             container_id = env.tool_group.allocated_container
-            
+
+            # Clear stale submission file from previous task on this container
+            _stale = os.path.join(
+                self.submission_dir, f"container_{container_id:03d}", "submission.csv"
+            )
+            if os.path.exists(_stale):
+                os.remove(_stale)
 
             total_tokens = 0
             final_answer = ""
@@ -122,7 +127,7 @@ class DSPredictReActAgent(ReActDSAgent):
                 env.save_prediction(final_answer, filename_prefix=prefix)
 
             execution_time = time.time() - start_time
-            container_dir = os.path.join(self.submission_dir, f"container_00{container_id}")
+            container_dir = os.path.join(self.submission_dir, f"container_{container_id:03d}")
             submission_file = os.path.join(container_dir, "submission.csv")
             submission_path = ""
             print(f"{submission_file=}")

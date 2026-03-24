@@ -38,7 +38,7 @@ def add_eval_parser(subparsers):
     
     # Dataset configuration
     parser.add_argument("--dataset", type=str, required=True,
-                       choices=["daeval", "discoverybench", "qrdata", "dabstep", "dspredict-easy", "dspredict-hard","bio"],
+                       choices=["daeval", "discoverybench", "qrdata", "dabstep", "dspredict-easy", "dspredict-hard", "dspredict-swap", "dspredict-mledojo", "bio"],
                        help="Dataset to evaluate on")
     parser.add_argument("--limit", type=int, default=None,
                        help="Number of samples to evaluate")
@@ -61,10 +61,34 @@ def add_eval_parser(subparsers):
     parser.add_argument("--max-workers", type=int, default=None,
                        help="Maximum number of parallel workers (auto-set based on backend if not provided)")
     
+    # Agent type
+    parser.add_argument("--agent", type=str, default="react",
+                       choices=["react", "vgs", "eet", "aide"],
+                       help="Agent type: 'react' (default), 'vgs' (value-guided search), 'eet' (explore-exploit-terminate), or 'aide' (draft-improve-debug)")
+
+    # EET-specific
+    parser.add_argument("--no-terminate", action="store_true", default=False,
+                       help="EET: disable terminate action (explore/exploit only)")
+    parser.add_argument("--self-contained", action="store_true", default=False,
+                       help="EET: each turn generates self-contained code (no state persistence)")
+
+    # AIDE-specific
+    parser.add_argument("--num-drafts", type=int, default=None,
+                       help="AIDE: number of initial draft turns (default: 5)")
+    parser.add_argument("--no-draft-memory", action="store_true", default=False,
+                       help="AIDE: skip cross-task memory injection during draft phase")
+    parser.add_argument("--best-node-strategy", type=str, default="latest",
+                       choices=["latest", "best"],
+                       help="AIDE: how to select node for Improve ('latest'=most recent good node, 'best'=highest scoring node)")
+
+    # Cross-task memory
+    parser.add_argument("--memory-path", type=str, default=None,
+                       help="Path to cross-task memory JSON file (enables cross-task experience sharing)")
+
     # API keys
     parser.add_argument("--api-key", type=str, default=None,
                        help="API key (uses environment variable if not provided)")
-    
+
     return parser
 
 
@@ -102,7 +126,51 @@ def run_eval(args) -> int:
         agent_config["api_key"] = args.api_key
     
     try:
-        if "dspredict" in args.dataset:
+        if args.agent == "aide" and "dspredict" in args.dataset:
+            from dsgym.agents import AIDEAgent
+            aide_kwargs = {}
+            if args.num_drafts is not None:
+                aide_kwargs["num_drafts"] = args.num_drafts
+            if args.no_draft_memory:
+                aide_kwargs["no_draft_memory"] = True
+            if args.best_node_strategy != "latest":
+                aide_kwargs["best_node_strategy"] = args.best_node_strategy
+            if args.memory_path is not None:
+                aide_kwargs["memory_path"] = args.memory_path
+            agent = AIDEAgent(
+                backend=args.backend,
+                model=args.model,
+                submission_dir="./submissions",
+                trajectory_output_dir=args.output_dir,
+                **aide_kwargs,
+                **agent_config
+            )
+        elif args.agent == "eet" and "dspredict" in args.dataset:
+            from dsgym.agents import EETAgent
+            eet_kwargs = {}
+            if args.no_terminate:
+                eet_kwargs["no_terminate"] = True
+            if args.self_contained:
+                eet_kwargs["self_contained"] = True
+            if args.memory_path is not None:
+                eet_kwargs["memory_path"] = args.memory_path
+            agent = EETAgent(
+                backend=args.backend,
+                model=args.model,
+                submission_dir="./submissions",
+                trajectory_output_dir=args.output_dir,
+                **eet_kwargs,
+                **agent_config
+            )
+        elif args.agent == "vgs" and "dspredict" in args.dataset:
+            from dsgym.agents import VGSAgent
+            agent = VGSAgent(
+                backend=args.backend,
+                model=args.model,
+                submission_dir="./submissions",
+                **agent_config
+            )
+        elif "dspredict" in args.dataset:
             agent = DSPredictReActAgent(
                 backend=args.backend,
                 model=args.model,
@@ -132,7 +200,10 @@ def run_eval(args) -> int:
         }
         dataset_name = args.dataset
         if "dspredict" in dataset_name:
-            dataset_config["split"] = dataset_name.split("-")[-1]
+            # Map CLI name to split key: dspredict-mledojo -> mle_dojo
+            _split_map = {"mledojo": "mle_dojo"}
+            raw_split = dataset_name.split("-", 1)[-1]  # "easy", "hard", "swap", "mledojo"
+            dataset_config["split"] = _split_map.get(raw_split, raw_split)
             dataset_name = dataset_name.split("-")[0]
             dataset_config["virtual_data_root"] = "/data"
             load_config["split"] = dataset_config["split"]

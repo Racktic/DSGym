@@ -6,8 +6,10 @@ waits for scoring, and enriches results with leaderboard statistics.
 """
 
 from .dspredict_metric import KaggleSubmissionMetric
+from .swap_metric import SwapSubmissionMetric
 
 __all__ = [
     "KaggleSubmissionMetric",
+    "SwapSubmissionMetric",
 ]
 

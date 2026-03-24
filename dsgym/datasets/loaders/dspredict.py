@@ -86,17 +86,24 @@ class DSPredictDataset(BaseDataset):
         Returns:
             List of dataset samples
         """
-        if split == "easy":
-            dataset_path = str(get_task_path("dspredict") / "easy.json")
-        elif split == "hard":
-            dataset_path = str(get_task_path("dspredict") / "hard.json")
-        elif split == "lite":
-            dataset_path = str(get_task_path("dspredict") / "lite.json")
+        # Map split name to JSON file and data directory
+        SPLIT_CONFIG = {
+            "easy":         ("easy.json",         "dspredict-easy"),
+            "hard":         ("hard.json",         "dspredict-hard"),
+            "lite":         ("lite.json",         "dspredict-easy"),
+            "swap":         ("swap.json",         "dspredict-swap"),
+            "mle_dojo":     ("mle_dojo.json",     "dspredict-mledojo"),
+            "mle_dojo_add": ("mle_dojo_add.json", "dspredict-mledojo"),
+        }
+
+        if split in SPLIT_CONFIG:
+            json_file, data_subdir = SPLIT_CONFIG[split]
         else:
-            dataset_path = str(get_task_path("dspredict") / "hard.json")
-        
+            json_file, data_subdir = "hard.json", "dspredict-hard"
+
+        dataset_path = str(get_task_path("dspredict") / json_file)
         validate_file_exists(dataset_path, f"DSPredict {split} dataset")
-        
+
         # Load JSON file (not JSONL)
         with open(dataset_path, 'r', encoding='utf-8') as f:
             items = json.load(f)
@@ -109,7 +116,7 @@ class DSPredictDataset(BaseDataset):
 
         samples = []
         downloader = None
-        kaggle_data_dir = RAW_DATA_DIR / f"dspredict-{split}"
+        kaggle_data_dir = RAW_DATA_DIR / data_subdir
 
         for idx, item in enumerate(items):
             docker_path = item['docker_challenge_path']
@@ -121,25 +128,30 @@ class DSPredictDataset(BaseDataset):
             
             competition_path = kaggle_data_dir / challenge_dir
             if not competition_path.exists():
+                # For local splits (swap, mle_dojo), no auto-download
+                if split in ("swap",):
+                    print(f"Data not found for {challenge_dir}, skipping (local split, no auto-download)")
+                    continue
+
                 print(f"Competition data not found: {challenge_dir}")
                 print(f"Attempting to download from Kaggle...")
-                
+
                 if downloader is None:
                     downloader = KaggleChallengeDownloader(download_dir=str(kaggle_data_dir))
-                
+
                 competition_name = item['challenge_name']
                 result = downloader.download_competition_data(competition_name)
-                
+
                 if result['status'] == 'failed':
                     print(f"Failed to download {competition_name}, skipping sample")
                     continue
-                
+
                 print(f"Successfully downloaded {competition_name}")
 
             from ..utils import construct_data_paths
             data_paths = construct_data_paths(
                 relative_paths=[challenge_dir],
-                dataset_name=f"dspredict-{split}",
+                dataset_name=data_subdir,
                 data_root=RAW_DATA_DIR,
                 virtual_data_root=self.virtual_data_root
             )
@@ -159,7 +171,8 @@ class DSPredictDataset(BaseDataset):
                 'source': 'dspredict',
                 'metadata_id': item['challenge_name'],
                 'query_id': item['challenge_name'],
-                'id': item['challenge_name']
+                'id': item['challenge_name'],
+                'metadata': item.get('metadata', {}),
             }
             
             # Create standardized sample
@@ -173,6 +186,7 @@ class DSPredictDataset(BaseDataset):
             samples.append(standard_sample)
         
         self._samples = samples
+        self._current_split = split
         return samples
     
     def get_sample(self, index: int) -> Dict[str, Any]:
@@ -192,7 +206,7 @@ class DSPredictDataset(BaseDataset):
                 'name': 'DSPredict',
                 'description': 'DSPredict competition challenges for machine learning',
                 'format': 'json',
-                'splits': ['easy', 'hard'],
+                'splits': ['easy', 'hard', 'lite', 'swap', 'mle_dojo'],
                 'fields': ['challenge_name', 'description', 'docker_challenge_path'],
                 'source': 'dspredict'
             }
@@ -201,6 +215,9 @@ class DSPredictDataset(BaseDataset):
 
     def get_metrics(self) -> List[str]:
         """Get metrics for DSPredict dataset."""
+        # Check if we loaded swap split — use local metric instead of Kaggle submission
+        if getattr(self, '_current_split', None) == 'swap':
+            return ["swap_submission"]
         return ["dspredict_submission"]
 
 

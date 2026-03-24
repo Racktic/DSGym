@@ -14,6 +14,7 @@ from .metrics.domain_specific import (
     HMSScoreMetric,
 )
 from .metrics.dspredict import KaggleSubmissionMetric as DSPredictSubmissionMetric
+from .metrics.dspredict import SwapSubmissionMetric
 from .metrics.mlebench import MLEBenchSubmissionMetric
 
 
@@ -50,6 +51,8 @@ class MetricRegistry:
         self.register("dabstep", DABStepMetric)
         # DSPredict submission + leaderboard scoring
         self.register("dspredict_submission", DSPredictSubmissionMetric)
+        # DSPredict swap — local evaluation with ground truth
+        self.register("swap_submission", SwapSubmissionMetric)
         # MLE-Bench offline grading metric
         self.register("mlebench_submission", MLEBenchSubmissionMetric)
         self.register("llm_score", LLMScoreMetric)

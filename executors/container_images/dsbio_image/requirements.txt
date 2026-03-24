@@ -20,7 +20,7 @@ squidpy==1.4.1
 scrublet==0.2.3
 biopython==1.83
 polars==0.20.30
-pybedtools==0.9.1        
+pybedtools>=0.10.0
 pyranges==0.0.129
 pyensembl==2.3.9
 

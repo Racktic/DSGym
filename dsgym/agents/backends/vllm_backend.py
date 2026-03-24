@@ -4,6 +4,7 @@ vLLM backend for DSGym agents.
 Supports local model inference with GPU acceleration.
 """
 
+import os
 from typing import List, Dict, Any, Optional
 
 try:
@@ -25,8 +26,8 @@ class VLLMBackend(BaseBackend):
     def __init__(
         self,
         model_name: str,
-        tensor_parallel_size: int = 1,
-        gpu_memory_utilization: float = 0.8,
+        tensor_parallel_size: int = int(os.environ.get("VLLM_TENSOR_PARALLEL_SIZE", "1")),
+        gpu_memory_utilization: float = float(os.environ.get("VLLM_GPU_MEMORY_UTILIZATION", "0.8")),
         max_model_len: int = 32768,
         temperature: float = 0.0,
         top_p: float = 1.0,

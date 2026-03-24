@@ -111,9 +111,11 @@ class LiteLLMBackend(BaseBackend):
                 if not self.api_key:
                     raise ValueError("ANTHROPIC_API_KEY environment variable is required for Anthropic Claude models")
         
-        # Set base URL if provided
+        # Set base URL if provided (also check OPENAI_API_BASE env var)
         if self.base_url:
             litellm.api_base = self.base_url
+        elif os.environ.get("OPENAI_API_BASE"):
+            litellm.api_base = os.environ.get("OPENAI_API_BASE")
         
         # Configure LiteLLM settings
         litellm.drop_params = True  # Drop unsupported parameters
@@ -142,12 +144,17 @@ class LiteLLMBackend(BaseBackend):
         # Retry logic with exponential backoff
         for attempt in range(self.max_retries):
             try:
-                response = litellm.completion(
-                    model=self.model_name, 
-                    messages=messages, 
-                    timeout=self.timeout, 
+                completion_kwargs = dict(
+                    model=self.model_name,
+                    messages=messages,
+                    timeout=self.timeout,
                     **params
                 )
+                if litellm.api_base:
+                    completion_kwargs["api_base"] = litellm.api_base
+                if self.api_key:
+                    completion_kwargs["api_key"] = self.api_key
+                response = litellm.completion(**completion_kwargs)
                 content = response.choices[0].message.content
                 return content if content is not None else ""
                 
