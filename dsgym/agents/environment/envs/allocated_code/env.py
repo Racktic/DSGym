@@ -339,11 +339,41 @@ class AllocatedCodeToolGroup:
     def allocate_container(self):
         if self.allocated_container is not None:
             return
-        
+
         response = self.client.post(f"{self.manager_url}/allocate")
         response.raise_for_status()
         result = response.json()
         self.allocated_container = result["container_id"]
+
+        # Restart kernel to clear any state from previous task
+        try:
+            self.client.post(
+                f"{self.manager_url}/session/{self.allocated_container}/restart"
+            )
+            # Wait for kernel to be ready
+            import time
+            for _ in range(30):
+                time.sleep(1)
+                ready_resp = self.client.get(
+                    f"{self.manager_url}/session/{self.allocated_container}/ready"
+                )
+                if ready_resp.status_code == 200 and ready_resp.json().get("ready"):
+                    break
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to restart kernel on container {self.allocated_container}: {e}")
+
+        # Clean up residual files from previous task to prevent container pollution
+        try:
+            result = self.execute_code(
+                "import os, glob\n"
+                "removed = glob.glob('/submission/*')\n"
+                "for f in removed: os.remove(f)\n"
+                "print(f'Cleaned {len(removed)} files from /submission/')"
+            )
+            print(f"🧹 Container {self.allocated_container} cleanup: {result.strip()}")
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to clean previous files on container {self.allocated_container}: {e}")
+
         return self.allocated_container
     
     def deallocate_container(self):

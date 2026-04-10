@@ -159,10 +159,14 @@ class VLLMInstance:
             # Apply chat template if tokenizer is available
             if self.tokenizer is not None:
                 try:
+                    template_kwargs = {}
+                    if "enable_thinking" in self.kwargs:
+                        template_kwargs["enable_thinking"] = self.kwargs["enable_thinking"]
                     prompt = self.tokenizer.apply_chat_template(
-                        messages, 
-                        tokenize=False, 
-                        add_generation_prompt=True
+                        messages,
+                        tokenize=False,
+                        add_generation_prompt=True,
+                        **template_kwargs
                     )
                 except Exception as e:
                     print(f"Warning: Could not apply chat template: {e}")
@@ -308,8 +312,12 @@ class MultiVLLMBackend(BaseBackend):
         self.is_running = True
         
     def _initialize_instances(self):
-        """Initialize all vLLM instances across GPUs."""
-        def init_single_instance(gpu_id):
+        """Initialize all vLLM instances across GPUs sequentially.
+
+        Must be sequential because vLLM/PyTorch distributed parallel state
+        (TP/PP/DP groups) is process-global and cannot be initialized concurrently.
+        """
+        for gpu_id in self.gpu_ids:
             try:
                 instance = VLLMInstance(
                     gpu_id=gpu_id,
@@ -317,31 +325,19 @@ class MultiVLLMBackend(BaseBackend):
                     **self.instance_config
                 )
                 instance.initialize()
-                
+
                 if instance.is_ready:
                     self.instances[gpu_id] = instance
                     self.ready_instances.put(gpu_id)
-                    print(f"✅ GPU {gpu_id} instance ready")
                 else:
                     print(f"❌ GPU {gpu_id} instance failed: {instance.error}")
-                    
+
             except Exception as e:
                 print(f"❌ Failed to initialize GPU {gpu_id}: {e}")
-        
-        # Initialize instances in parallel
-        with ThreadPoolExecutor(max_workers=self.num_gpus) as init_executor:
-            futures = [
-                init_executor.submit(init_single_instance, gpu_id)
-                for gpu_id in self.gpu_ids
-            ]
-            
-            # Wait for all to complete
-            for future in futures:
-                future.result()
-        
+
         ready_count = len(self.instances)
         print(f"📊 Initialization complete: {ready_count}/{self.num_gpus} instances ready")
-        
+
         if ready_count == 0:
             raise RuntimeError("No vLLM instances were successfully initialized!")
     

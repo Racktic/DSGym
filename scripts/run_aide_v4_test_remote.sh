@@ -1,8 +1,10 @@
 #!/bin/bash
-cd /data/fnie/qixin/DSGym
 export TOGETHER_API_KEY="${TOGETHER_API_KEY:?Set TOGETHER_API_KEY}"
-export PYTHONUNBUFFERED=1
-mkdir -p evaluation_results/aide_current_score_test
+cd /data/fnie/qixin/DSGym
+
+OUTPUT_DIR="/data/fnie/qixin/DSGym/evaluation_results/aide_v4_best_test"
+mkdir -p "$OUTPUT_DIR"
+
 .venv/bin/dsgym eval \
     --model together_ai/Qwen/Qwen3-235B-A22B-Instruct-2507-tput \
     --dataset dspredict-easy \
@@ -12,6 +14,6 @@ mkdir -p evaluation_results/aide_current_score_test
     --max-turns 20 \
     --max-workers 2 \
     --limit 2 \
-    --output-dir /data/fnie/qixin/DSGym/evaluation_results/aide_current_score_test \
-    > /data/fnie/qixin/DSGym/logs/aide_current_score_test.out 2>&1
-echo "Done: $?"
+    --best-node-strategy best \
+    --memory-path "$OUTPUT_DIR/cross_task_memory.json" \
+    --output-dir "$OUTPUT_DIR"

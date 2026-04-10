@@ -30,9 +30,9 @@ Important rules:
 
 You MUST use the following format for your response. Each step must follow this exact structure:
 
-<reasoning>
+<goal>
 Write clear reasoning about what you plan to do next and why. Be specific about your analytical approach.
-</reasoning>
+</goal>
 <python>
 Write executable Python code here. Each code block should do ONE specific task.
 Code must be complete and runnable. Include all necessary imports.
@@ -44,9 +44,9 @@ This section is read-only - you cannot write here.
 
 Repeat these blocks for each analysis step. When you reach your conclusion, you should follow this structure:
 
-<reasoning>
+<goal>
 Write clear reasoning about how you came up with your final answer.
-</reasoning>
+</goal>
 <answer>
 Write your final answer here according to the requirements of the question. Do not include any other text or unnecessary information.
 </answer>
@@ -131,9 +131,9 @@ Important rules:
 
 You MUST use the following format for your response. Each step must follow this exact structure:
 
-<reasoning>
+<goal>
 Write clear reasoning about what you plan to do next and why. Be specific about your analytical approach.
-</reasoning>
+</goal>
 <python>
 Write executable Python code here. Each code block should do ONE specific task.
 Code must be complete and runnable. Include all necessary imports.
@@ -145,9 +145,9 @@ This section is read-only - you cannot write here.
 
 Repeat these blocks for each analysis step. When you reach your conclusion, you should follow this structure:
 
-<reasoning>
+<goal>
 Write clear reasoning about how you came up with your final answer.
-</reasoning>
+</goal>
 <answer>
 Write a concise summary here. Do not include any other text or unnecessary information.
 </answer>
@@ -186,9 +186,9 @@ Wherever there is a conflict between the points above and the competition-specif
 
 Response format requirements remain the same:
 
-<reasoning>
+<goal>
 Explain what you will do next and why.
-</reasoning>
+</goal>
 <python>
 Executable Python code for one specific task, with imports.
 </python>
@@ -198,9 +198,9 @@ Read-only outputs from your Python code appear here.
 
 Repeat as needed. When concluding, provide:
 
-<reasoning>
+<goal>
 Explain how you arrived at the final solution.
-</reasoning>
+</goal>
 <answer>
 Concise summary of your final approach.
 </answer>

@@ -21,7 +21,7 @@ INPUT_JSON = REPO_ROOT / "data/task/dspredict/mle_dojo.json"
 OUTPUT_JSON = REPO_ROOT / "data/task/dspredict/mle_dojo.json"  # overwrite
 DATA_DIR = REPO_ROOT / "data/data/dspredict-mledojo"
 
-TOGETHER_API_KEY = "tgp_v1_CZUEMzg7WnjCfNkZ6ActxCwcGgDWXbbuaQbdqpCzZfk"
+TOGETHER_API_KEY = "$TOGETHER_API_KEY"
 LLM_MODEL = "together_ai/Qwen/Qwen3-235B-A22B-Instruct-2507-tput"
 
 

@@ -287,6 +287,41 @@ class CrossTaskMemory:
         )
         self._append_entry(entry)
 
+    def store_from_summary(
+        self,
+        challenge_name: str,
+        task_description: str,
+        turn: int,
+        action: str,
+        entry_type: str,
+        model_type: str,
+        insight: str,
+        plan: str = "",
+        score: Optional[float] = None,
+    ):
+        """Store a cross-task memory entry from LLM-generated summary.
+
+        Called after the per-turn summary LLM decides this turn is worth
+        recording (improvement or debug_fix). The content (type, model, insight)
+        comes directly from the model's <cross_task_memory> XML block.
+
+        V5 also passes plan (model's goal text) and score for richer entries.
+        """
+        entry = MemoryEntry(
+            challenge_name=challenge_name,
+            task_description=task_description,
+            turn=turn,
+            action=action,
+            plan=plan,
+            model_type=model_type,
+            score=score,
+            score_improved=entry_type == "improvement",
+            buggy=entry_type == "debug_fix",
+            insight=insight,
+            entry_type=entry_type,
+        )
+        self._append_entry(entry)
+
     def store_task_summary(
         self,
         challenge_name: str,

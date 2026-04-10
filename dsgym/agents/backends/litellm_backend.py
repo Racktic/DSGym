@@ -154,6 +154,10 @@ class LiteLLMBackend(BaseBackend):
                     completion_kwargs["api_base"] = litellm.api_base
                 if self.api_key:
                     completion_kwargs["api_key"] = self.api_key
+                # Force OpenAI-compatible provider when base_url is set
+                # This prevents litellm from auto-detecting providers (e.g., gemini -> Vertex AI)
+                if self.base_url and "custom_llm_provider" not in completion_kwargs:
+                    completion_kwargs["custom_llm_provider"] = "openai"
                 response = litellm.completion(**completion_kwargs)
                 content = response.choices[0].message.content
                 return content if content is not None else ""

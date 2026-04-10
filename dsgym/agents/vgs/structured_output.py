@@ -303,6 +303,27 @@ def parse_aide_output(text: str) -> StructuredOutput:
     )
 
 
+def parse_aide_output_v6(text: str) -> StructuredOutput:
+    """
+    Parse V6 AIDE-format output (goal + python, no search_state wrapper).
+
+    V6 simplified format: model outputs <goal> and <python> at top level,
+    no <search_state>/<step>/<best_score>/<baseline_score>.
+    """
+    goal = _extract_tag_text(text, "goal")
+    # Build a minimal SearchState with only goal populated
+    search_state = SearchState(
+        phase="exploration",
+        step=0,
+        goal=goal,
+    )
+    return StructuredOutput(
+        search_state=search_state,
+        python_code=_parse_python_code(text),
+        raw_text=text,
+    )
+
+
 def parse_eet_output(text: str) -> StructuredOutput:
     """
     Parse EET-format output (simplified: no candidates, no value_estimation).

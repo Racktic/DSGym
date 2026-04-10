@@ -92,8 +92,13 @@ class DSPredictDataset(BaseDataset):
             "hard":         ("hard.json",         "dspredict-hard"),
             "lite":         ("lite.json",         "dspredict-easy"),
             "swap":         ("swap.json",         "dspredict-swap"),
+            "hard_swap":    ("hard_swap.json",    "dspredict-hard-swap"),
             "mle_dojo":     ("mle_dojo.json",     "dspredict-mledojo"),
             "mle_dojo_add": ("mle_dojo_add.json", "dspredict-mledojo"),
+            "hard_rejected": ("hard_rejected.json", "dspredict-hard"),
+            "easy_claude_retry": ("easy_claude_retry.json", "dspredict-easy"),
+            "mle_dojo_remaining": ("mle_dojo_remaining.json", "dspredict-mledojo"),
+            "mle_bench":    ("mle_bench.json",    "dspredict-mle_bench"),
         }
 
         if split in SPLIT_CONFIG:
@@ -206,7 +211,7 @@ class DSPredictDataset(BaseDataset):
                 'name': 'DSPredict',
                 'description': 'DSPredict competition challenges for machine learning',
                 'format': 'json',
-                'splits': ['easy', 'hard', 'lite', 'swap', 'mle_dojo'],
+                'splits': ['easy', 'hard', 'lite', 'swap', 'hard_swap', 'mle_dojo'],
                 'fields': ['challenge_name', 'description', 'docker_challenge_path'],
                 'source': 'dspredict'
             }
@@ -216,7 +221,7 @@ class DSPredictDataset(BaseDataset):
     def get_metrics(self) -> List[str]:
         """Get metrics for DSPredict dataset."""
         # Check if we loaded swap split — use local metric instead of Kaggle submission
-        if getattr(self, '_current_split', None) == 'swap':
+        if getattr(self, '_current_split', None) in ('swap', 'hard_swap'):
             return ["swap_submission"]
         return ["dspredict_submission"]
 

@@ -42,7 +42,7 @@ OUTPUT_JSON = REPO_ROOT / "data/task/dspredict/swap.json"
 # LLM config
 TOGETHER_API_KEY = os.environ.get(
     "TOGETHER_API_KEY",
-    "tgp_v1_CZUEMzg7WnjCfNkZ6ActxCwcGgDWXbbuaQbdqpCzZfk"
+    "$TOGETHER_API_KEY"
 )
 LLM_MODEL = "together_ai/Qwen/Qwen3-235B-A22B-Instruct-2507-tput"
 

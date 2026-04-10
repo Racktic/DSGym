@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Optional
 
 # Add DSGym to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+DSGYM_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(DSGYM_ROOT))
 
 from dsgym.datasets import DatasetRegistry
 from dsgym.agents import ReActDSAgent, DSPredictReActAgent
@@ -33,12 +34,12 @@ def add_eval_parser(subparsers):
     parser.add_argument("--model", type=str, required=True,
                        help="Model name (e.g., 'gpt-4', 'together_ai/Qwen/Qwen3-235B-A22B-Instruct-2507-tput')")
     parser.add_argument("--backend", type=str, default="litellm",
-                       choices=["litellm", "vllm", "sglang"],
+                       choices=["litellm", "vllm", "sglang", "multi-vllm"],
                        help="Backend to use for model inference")
     
     # Dataset configuration
     parser.add_argument("--dataset", type=str, required=True,
-                       choices=["daeval", "discoverybench", "qrdata", "dabstep", "dspredict-easy", "dspredict-hard", "dspredict-swap", "dspredict-mledojo", "bio"],
+                       choices=["daeval", "discoverybench", "qrdata", "dabstep", "dspredict-easy", "dspredict-hard", "dspredict-swap", "dspredict-hard-swap", "dspredict-mledojo", "dspredict-hard-rejected", "dspredict-easy-claude-retry", "dspredict-mledojo-remaining", "dspredict-mle-bench", "bio"],
                        help="Dataset to evaluate on")
     parser.add_argument("--limit", type=int, default=None,
                        help="Number of samples to evaluate")
@@ -54,7 +55,9 @@ def add_eval_parser(subparsers):
                        help="Maximum turns per sample")
     parser.add_argument("--temperature", type=float, default=0.0,
                        help="Sampling temperature")
-    
+    parser.add_argument("--max-tokens", type=int, default=None,
+                       help="Maximum tokens per generation (default: 1524 for litellm)")
+
     # Infrastructure
     parser.add_argument("--manager-url", type=str, default="http://localhost:5000",
                        help="Code sandbox manager URL")
@@ -81,6 +84,20 @@ def add_eval_parser(subparsers):
                        choices=["latest", "best"],
                        help="AIDE: how to select node for Improve ('latest'=most recent good node, 'best'=highest scoring node)")
 
+    parser.add_argument("--memory-version", type=str, default="v4",
+                       choices=["v4", "v5", "v6"],
+                       help="AIDE: memory version ('v4'=LLM summary, 'v5'=V2-style cross-task, 'v6'=simplified output format + is_best tracking)")
+    parser.add_argument("--no-task-memory", action="store_true", default=False,
+                       help="AIDE: skip task-internal memory injection into prompts (summary LLM still runs)")
+    parser.add_argument("--no-cross-memory", action="store_true", default=False,
+                       help="AIDE: disable cross-task memory (no read/write)")
+
+    parser.add_argument("--log-degradation", action="store_true", default=False,
+                       help="AIDE V5: also log failed improve attempts (score degradation) to cross-task memory")
+
+    parser.add_argument("--no-think", action="store_true", default=False,
+                       help="Disable thinking mode for Qwen3 models (pass enable_thinking=False to chat template)")
+
     # Cross-task memory
     parser.add_argument("--memory-path", type=str, default=None,
                        help="Path to cross-task memory JSON file (enables cross-task experience sharing)")
@@ -88,6 +105,8 @@ def add_eval_parser(subparsers):
     # API keys
     parser.add_argument("--api-key", type=str, default=None,
                        help="API key (uses environment variable if not provided)")
+    parser.add_argument("--base-url", type=str, default=None,
+                       help="Base URL for API endpoint (e.g., LiteLLM proxy or OpenRouter)")
 
     return parser
 
@@ -104,6 +123,8 @@ def run_eval(args) -> int:
     if args.max_workers is None:
         if args.backend == "litellm":
             args.max_workers = 24
+        elif args.backend == "multi-vllm":
+            args.max_workers = 8  # one worker per GPU instance
         else:  # vllm or sglang
             args.max_workers = 1
     
@@ -122,8 +143,15 @@ def run_eval(args) -> int:
         "output_dir": args.output_dir,
     }
     
+    if args.no_think:
+        agent_config["enable_thinking"] = False
+
     if args.backend == "litellm" and args.api_key:
         agent_config["api_key"] = args.api_key
+    if args.backend == "litellm" and args.base_url:
+        agent_config["base_url"] = args.base_url
+    if args.max_tokens:
+        agent_config["max_tokens"] = args.max_tokens
     
     try:
         if args.agent == "aide" and "dspredict" in args.dataset:
@@ -137,10 +165,18 @@ def run_eval(args) -> int:
                 aide_kwargs["best_node_strategy"] = args.best_node_strategy
             if args.memory_path is not None:
                 aide_kwargs["memory_path"] = args.memory_path
+            if args.memory_version != "v4":
+                aide_kwargs["memory_version"] = args.memory_version
+            if args.no_task_memory:
+                aide_kwargs["no_task_memory"] = True
+            if args.no_cross_memory:
+                aide_kwargs["no_cross_memory"] = True
+            if args.log_degradation:
+                aide_kwargs["log_degradation"] = True
             agent = AIDEAgent(
                 backend=args.backend,
                 model=args.model,
-                submission_dir="./submissions",
+                submission_dir=str(DSGYM_ROOT / "submissions"),
                 trajectory_output_dir=args.output_dir,
                 **aide_kwargs,
                 **agent_config
@@ -157,7 +193,7 @@ def run_eval(args) -> int:
             agent = EETAgent(
                 backend=args.backend,
                 model=args.model,
-                submission_dir="./submissions",
+                submission_dir=str(DSGYM_ROOT / "submissions"),
                 trajectory_output_dir=args.output_dir,
                 **eet_kwargs,
                 **agent_config
@@ -167,14 +203,14 @@ def run_eval(args) -> int:
             agent = VGSAgent(
                 backend=args.backend,
                 model=args.model,
-                submission_dir="./submissions",
+                submission_dir=str(DSGYM_ROOT / "submissions"),
                 **agent_config
             )
         elif "dspredict" in args.dataset:
             agent = DSPredictReActAgent(
                 backend=args.backend,
                 model=args.model,
-                submission_dir="./submissions",
+                submission_dir=str(DSGYM_ROOT / "submissions"),
                 **agent_config
             )
         else:
@@ -201,7 +237,7 @@ def run_eval(args) -> int:
         dataset_name = args.dataset
         if "dspredict" in dataset_name:
             # Map CLI name to split key: dspredict-mledojo -> mle_dojo
-            _split_map = {"mledojo": "mle_dojo"}
+            _split_map = {"mledojo": "mle_dojo", "mledojo-remaining": "mle_dojo_remaining", "hard-swap": "hard_swap", "hard-rejected": "hard_rejected", "easy-claude-retry": "easy_claude_retry", "mle-bench": "mle_bench"}
             raw_split = dataset_name.split("-", 1)[-1]  # "easy", "hard", "swap", "mledojo"
             dataset_config["split"] = _split_map.get(raw_split, raw_split)
             dataset_name = dataset_name.split("-")[0]

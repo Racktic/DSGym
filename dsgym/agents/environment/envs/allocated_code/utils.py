@@ -73,9 +73,26 @@ def clean_jupyter_output(raw_output, max_error_length: int = 800, max_stdout_len
             name = item.get('name', '')
             text = item.get('text', '')
             if text:
+                if name == 'stderr':
+                    # Deduplicate repeated warning lines and truncate
+                    lines = text.split('\n')
+                    seen = set()
+                    deduped = []
+                    for line in lines:
+                        stripped = line.strip()
+                        if stripped and stripped not in seen:
+                            seen.add(stripped)
+                            deduped.append(line)
+                    text = '\n'.join(deduped)
+                    max_stderr_length = 1000
+                    if len(text) > max_stderr_length:
+                        text = text[:max_stderr_length] + "\n... (stderr truncated)"
                 cleaned_outputs.append(f"[{name}] {text}" if name else text)
-    
-    return '\n'.join(cleaned_outputs) if cleaned_outputs else ""
+
+    result = '\n'.join(cleaned_outputs) if cleaned_outputs else ""
+    if len(result) > max_stdout_length:
+        result = result[:max_stdout_length] + "\n... (output truncated)"
+    return result
 
 
 def _clean_ansi_codes(text: str) -> str:

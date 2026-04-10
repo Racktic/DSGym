@@ -1,6 +1,6 @@
 #!/bin/bash
 cd /data/fnie/qixin/DSGym
-export TOGETHER_API_KEY="tgp_v1_CZUEMzg7WnjCfNkZ6ActxCwcGgDWXbbuaQbdqpCzZfk"
+export TOGETHER_API_KEY="${TOGETHER_API_KEY:?Set TOGETHER_API_KEY}"
 export PYTHONUNBUFFERED=1
 mkdir -p evaluation_results/aide_memory_v2_bestnode_freq evaluation_results/aide_memory_v2_bestnode_freq_easy
 nohup .venv/bin/dsgym eval \
