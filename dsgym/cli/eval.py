@@ -66,14 +66,8 @@ def add_eval_parser(subparsers):
     
     # Agent type
     parser.add_argument("--agent", type=str, default="react",
-                       choices=["react", "vgs", "eet", "aide"],
-                       help="Agent type: 'react' (default), 'vgs' (value-guided search), 'eet' (explore-exploit-terminate), or 'aide' (draft-improve-debug)")
-
-    # EET-specific
-    parser.add_argument("--no-terminate", action="store_true", default=False,
-                       help="EET: disable terminate action (explore/exploit only)")
-    parser.add_argument("--self-contained", action="store_true", default=False,
-                       help="EET: each turn generates self-contained code (no state persistence)")
+                       choices=["react", "aide"],
+                       help="Agent type: 'react' (default) or 'aide' (draft-improve-debug)")
 
     # AIDE-specific
     parser.add_argument("--num-drafts", type=int, default=None,
@@ -179,31 +173,6 @@ def run_eval(args) -> int:
                 submission_dir=str(DSGYM_ROOT / "submissions"),
                 trajectory_output_dir=args.output_dir,
                 **aide_kwargs,
-                **agent_config
-            )
-        elif args.agent == "eet" and "dspredict" in args.dataset:
-            from dsgym.agents import EETAgent
-            eet_kwargs = {}
-            if args.no_terminate:
-                eet_kwargs["no_terminate"] = True
-            if args.self_contained:
-                eet_kwargs["self_contained"] = True
-            if args.memory_path is not None:
-                eet_kwargs["memory_path"] = args.memory_path
-            agent = EETAgent(
-                backend=args.backend,
-                model=args.model,
-                submission_dir=str(DSGYM_ROOT / "submissions"),
-                trajectory_output_dir=args.output_dir,
-                **eet_kwargs,
-                **agent_config
-            )
-        elif args.agent == "vgs" and "dspredict" in args.dataset:
-            from dsgym.agents import VGSAgent
-            agent = VGSAgent(
-                backend=args.backend,
-                model=args.model,
-                submission_dir=str(DSGYM_ROOT / "submissions"),
                 **agent_config
             )
         elif "dspredict" in args.dataset:

@@ -29,8 +29,8 @@ def add_generate_parser(subparsers):
         "--agent",
         type=str,
         default="standard",
-        choices=["standard", "teacher", "eet", "aide"],
-        help="Agent type: 'standard' (original), 'teacher' (VGS structured trajectories), 'eet' (explore-exploit-terminate), or 'aide' (draft-improve-debug)",
+        choices=["standard", "teacher", "aide"],
+        help="Agent type: 'standard' (original), 'teacher' (VGS structured trajectories), or 'aide' (draft-improve-debug)",
     )
 
     # Model configuration
@@ -146,8 +146,6 @@ def run_generate(args) -> int:
     """Run trajectory generation command."""
     if args.agent == "teacher":
         return _run_teacher_generate(args)
-    elif args.agent == "eet":
-        return _run_eet_generate(args)
     elif args.agent == "aide":
         return _run_aide_generate(args)
     else:
@@ -164,125 +162,6 @@ def _run_standard_generate(args) -> int:
     # This will use the TrajectoryGenerator from dsgym.synth
 
     return 0
-
-
-def _run_eet_generate(args) -> int:
-    """Generate EET (Explore-Exploit-Terminate) trajectories."""
-    from dsgym.datasets import DatasetRegistry
-    from dsgym.agents.vgs import EETAgent
-    from dsgym.eval import Evaluator
-    from dsgym.eval.utils import EvaluationConfig
-
-    print("Starting EET Trajectory Generation")
-    print(f"Model: {args.model}")
-    print(f"Backend: {args.backend}")
-    print(f"Dataset: {args.dataset}")
-    print(f"Temperature: {args.temperature}")
-    print(f"Max turns: {args.max_turns}")
-    print(f"Output: {args.output_dir}")
-    print("-" * 50)
-
-    os.makedirs(args.output_dir, exist_ok=True)
-
-    agent_config = {
-        "manager_url": args.manager_url,
-        "max_turns": args.max_turns,
-        "temperature": args.temperature,
-        "output_dir": args.output_dir,
-        "trajectory_output_dir": args.output_dir,
-        "submission_dir": "./submissions",
-    }
-
-    if args.backend == "litellm" and args.api_key:
-        agent_config["api_key"] = args.api_key
-
-    try:
-        agent = EETAgent(
-            backend=args.backend,
-            model=args.model,
-            **agent_config,
-        )
-        print("EETAgent initialized")
-    except Exception as e:
-        print(f"Failed to initialize EETAgent: {e}")
-        return 1
-
-    print(f"Loading {args.dataset} dataset...")
-    try:
-        dataset_config = {}
-        load_config = {"limit": args.limit}
-        dataset_name = args.dataset
-
-        if "dspredict" in dataset_name:
-            dataset_config["split"] = dataset_name.split("-")[-1]
-            dataset_name = dataset_name.split("-")[0]
-            dataset_config["virtual_data_root"] = "/data"
-            load_config["split"] = dataset_config["split"]
-
-        dataset = DatasetRegistry.load(dataset_name, **dataset_config)
-        samples = dataset.load(**load_config)
-        print(f"Loaded {len(samples)} samples")
-    except Exception as e:
-        print(f"Failed to load dataset: {e}")
-        return 1
-
-    evaluator = Evaluator(
-        protocol="multi_turn",
-        dataset=dataset,
-        parallel_workers=min(args.max_workers, 1),
-    )
-
-    run_name = args.run_name or (
-        f"eet_{args.dataset}_{args.backend}_{args.model.replace('/', '_')}"
-    )
-    config = EvaluationConfig(
-        model_name=args.model,
-        backend_type=args.backend,
-        dataset_name=args.dataset,
-        output_dir=args.output_dir,
-        run_name=run_name,
-        max_turns=args.max_turns,
-        temperature=args.temperature,
-        max_workers=args.max_workers,
-    )
-
-    print("Starting EET trajectory generation...")
-    try:
-        results = evaluator.evaluate(
-            agent=agent,
-            tasks=samples,
-            config=config,
-            save_results=True,
-        )
-        print("EET trajectory generation completed!")
-        print(f"Results saved to: {args.output_dir}")
-
-        if "metrics" in results:
-            metrics = results["metrics"]
-            for key in [
-                "success_rate",
-                "total_samples",
-                "successful_samples",
-                "average_execution_time",
-            ]:
-                if key in metrics:
-                    value = metrics[key]
-                    if isinstance(value, float):
-                        print(f"  {key}: {value:.3f}")
-                    else:
-                        print(f"  {key}: {value}")
-
-        if "dspredict" in args.dataset:
-            dataset.print_dspredict_results_overview(results["results"])
-
-        return 0
-
-    except Exception as e:
-        print(f"EET trajectory generation failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return 1
 
 
 def _run_aide_generate(args) -> int:

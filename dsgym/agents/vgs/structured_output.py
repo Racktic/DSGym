@@ -324,20 +324,6 @@ def parse_aide_output_v6(text: str) -> StructuredOutput:
     )
 
 
-def parse_eet_output(text: str) -> StructuredOutput:
-    """
-    Parse EET-format output (simplified: no candidates, no value_estimation).
-
-    Reuses existing parser components for search_state, decision, and python.
-    """
-    return StructuredOutput(
-        search_state=_parse_search_state(text),
-        decision=_parse_decision(text),
-        python_code=_parse_python_code(text),
-        raw_text=text,
-    )
-
-
 def _extract_tag_text(text: str, tag: str) -> Optional[str]:
     """Extract text content of a simple XML tag."""
     match = re.search(rf"<{tag}>(.*?)</{tag}>", text, re.DOTALL)
