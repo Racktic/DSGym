@@ -46,7 +46,7 @@ dsgym eval [参数]
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--agent` | `react` | Agent 类型: `react`, `vgs`, `eet`, `aide` |
+| `--agent` | `react` | Agent 类型: `react` 或 `aide`（draft-improve-debug） |
 
 ### AIDE 专用参数
 
@@ -115,6 +115,28 @@ dsgym eval \
     --output-dir evaluation_results/sft_eval
 ```
 
+### LiteLLM Proxy 蒸馏（多模型 diverse，无 memory）
+```bash
+export LITELLM_API_KEY=your_key
+dsgym eval \
+    --model openai/gemini-3-flash-preview \
+    --dataset dspredict-mledojo \
+    --backend litellm \
+    --agent aide \
+    --memory-version v6 \
+    --no-cross-memory \
+    --api-key $LITELLM_API_KEY \
+    --base-url https://litellm.nbdevenv.xiaoaojianghu.fun \
+    --num-drafts 3 \
+    --max-turns 12 \
+    --max-tokens 4096 \
+    --max-workers 8 \
+    --best-node-strategy best \
+    --output-dir evaluation_results/distill_gemini_flash_mledojo
+```
+支持的 LiteLLM proxy 模型：`openai/claude-sonnet-4.6`, `openai/gpt-5.2`, `openai/gemini-3-flash-preview`。
+模型名必须加 `openai/` 前缀（让 litellm 走 OpenAI 兼容协议），proxy 收到后会去掉前缀路由到实际模型。
+
 ### Together AI 蒸馏（带 cross-task memory）
 ```bash
 export TOGETHER_API_KEY=xxx
@@ -134,14 +156,25 @@ dsgym eval \
 
 ## Docker 容器配置
 
-| Split | Compose 文件 | 内存 | CPU | GPU | Timeout |
-|-------|-------------|------|-----|-----|---------|
-| easy/swap | `docker-dspredict-easy.yml` | 2G | 0.5 | 无 | 600s |
-| hard/mledojo/hard-swap | `docker-dspredict-hard.yml` | 24G | 8 | 有 | 3600s |
+| Split | Compose 文件 | 镜像 | 内存 | CPU | GPU | Timeout |
+|-------|-------------|------|------|-----|-----|---------|
+| easy / swap / hard-swap | `docker-dspredict-easy.yml` | executor-kaggle | 2G | 0.5 | 无 | 600s |
+| hard / hard-rejected | `docker-dspredict-hard.yml` | executor-kaggle | 24G | 8 | 有 | 3600s |
+| mledojo / mle-bench | `docker-dspredict-mledojo.yml` | executor-mle | 24G | 8 | 有 | 3600s |
+
+**executor-kaggle**: 基础 ML 包（sklearn, xgboost, lightgbm, catboost 等 29 个包）
+**executor-mle**: 全栈 ML 包（额外含 transformers, torch, tensorflow 等 92 个包）
+
+⚠️ httpx client timeout = 1800s（30 分钟），比容器 timeout 先生效。
+
+详细文档见 [docker_executor_guide.md](docker_executor_guide.md)。
 
 切换容器：
 ```bash
 cd /data/fnie/qixin/DSGym/executors
-sudo docker compose -f docker-dspredict-easy.yml down
-sudo docker compose -f docker-dspredict-hard.yml up -d
+sudo docker compose -f docker-dspredict-easy.yml down 2>/dev/null
+sudo docker compose -f docker-dspredict-hard.yml down 2>/dev/null
+sudo docker compose -f docker-dspredict-mledojo.yml down 2>/dev/null
+# 启动目标配置（三选一）
+sudo docker compose -f docker-dspredict-easy.yml up -d
 ```
