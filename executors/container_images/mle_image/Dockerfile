@@ -69,8 +69,10 @@ RUN pip install flask && \
 # -----------------------------
 # System user and base layout
 # -----------------------------
-RUN groupadd -g 243000848 appuser && \
-    useradd -r -u 243000848 -g appuser appuser
+ARG HOST_UID=1000
+ARG HOST_GID=1000
+RUN groupadd -g ${HOST_GID} appuser && \
+    useradd -r -u ${HOST_UID} -g appuser appuser
 RUN chmod +x /app/entrypoint.sh
 
 WORKDIR /app

@@ -166,3 +166,41 @@ Round N+1: 用更新后的 memory 指导下一轮
 - [ ] 多轮迭代（Round 2, 3, ...）
 - [ ] 扩展到 hard split 和 MLE-Bench
 - [ ] 验证收敛性和 teacher-surpassing
+
+## Train / Test Split
+
+为了公平评估，从 easy 和 hard 各 held-out 10 个 task 作为 test set：
+
+### Easy Test（8 个）
+| Task | 类型 | 理由 |
+|------|------|------|
+| house-prices-advanced-regression-techniques | regression | 经典 benchmark |
+| titanic | binary classification | 最经典 Kaggle 入门题 |
+| playground-series-s3e13 | multiclass | 多类分类代表 |
+| playground-series-s3e19 | time series | 唯二时序题之一 |
+| playground-series-s4e3 | multilabel | 唯一多标签题 |
+| playground-series-s4e1 | binary classification | 银行客户流失 |
+| playground-series-s5e3 | binary classification | S5 系列代表（最新赛季） |
+| playground-series-s3e25 | regression | 多目标回归 |
+
+### Hard Test（10 个）
+| Task | Domain | 理由 |
+|------|--------|------|
+| home-data-for-ml-course | ML/tabular | tabular baseline，与 easy house-prices 对应 |
+| ieee-fraud-detection | ML/tabular | 大规模 tabular，百万行级 |
+| digit-recognizer | CV | 经典 CV 入门（MNIST） |
+| nlp-getting-started | NLP | 经典 NLP 入门 |
+| store-sales-time-series-forecasting | time_series | 长时序预测 |
+| spaceship-titanic | ML/tabular | hard 中最 easy 的，测下限 |
+| ventilator-pressure-prediction | sensor_signal | 传感器时序回归 |
+| novozymes-enzyme-stability-prediction | bioinformatics | 蛋白质序列预测 |
+| recruit-restaurant-visitor-forecasting | time_series | 多表关联 + 时序 |
+| mens-march-mania-2022 | sports | 概率预测，log loss metric |
+
+### 数据文件
+- `data/task/dspredict/easy_train.json`（30 个）
+- `data/task/dspredict/easy_test.json`（8 个）
+- `data/task/dspredict/hard_train.json`（44 个）
+- `data/task/dspredict/hard_test.json`（10 个）
+
+CLI 用法：`--dataset dspredict-easy-test`、`--dataset dspredict-hard-test` 等。

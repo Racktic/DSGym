@@ -150,7 +150,8 @@ def build_truncAF(traj_path, split_name):
     final_user = exec_output + '\n\n[ACTION: FINAL SUBMISSION]\n\nGenerate your final submission now using your best approach. Save predictions to /submission/submission.csv.'
 
     # For final assistant: use the LAST assistant from original trajectory
-    # If it has no <python> (e.g., only <answer>), fallback to best turn's code
+    # If it has no <python> (e.g., only <answer>), skip this trajectory entirely
+    # (no fallback to best turn — that would teach model to submit validation code)
     final_asst = None
     for m in reversed(conv):
         if m['role'] == 'assistant':
@@ -161,7 +162,7 @@ def build_truncAF(traj_path, split_name):
                 final_asst = final_asst[:final_asst.index('<answer>')].strip()
             break
     if not final_asst or '<python>' not in final_asst:
-        final_asst = best_turn_asst
+        return None
 
     # Step 5: Clean all messages
     cleaned = []

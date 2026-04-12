@@ -99,6 +99,10 @@ class DSPredictDataset(BaseDataset):
             "easy_claude_retry": ("easy_claude_retry.json", "dspredict-easy"),
             "mle_dojo_remaining": ("mle_dojo_remaining.json", "dspredict-mledojo"),
             "mle_bench":    ("mle_bench.json",    "dspredict-mle_bench"),
+            "easy_train":   ("easy_train.json",   "dspredict-easy"),
+            "easy_test":    ("easy_test.json",    "dspredict-easy"),
+            "hard_train":   ("hard_train.json",   "dspredict-hard"),
+            "hard_test":    ("hard_test.json",    "dspredict-hard"),
         }
 
         if split in SPLIT_CONFIG:

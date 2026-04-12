@@ -30,8 +30,24 @@ dsgym eval [参数]
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--dataset` | (必填) | 数据集。常用: `dspredict-easy`, `dspredict-hard`, `dspredict-swap`, `dspredict-mledojo`, `dspredict-hard-swap`, `dspredict-hard-rejected`, `dspredict-easy-claude-retry` |
+| `--dataset` | (必填) | 数据集。详见下方 Dataset Split 表 |
 | `--limit` | None (全部) | 限制评测的样本数 |
+
+### Dataset Splits
+
+| CLI 名 | 数量 | 用途 |
+|--------|------|------|
+| `dspredict-easy` | 38 | Easy 全集 |
+| `dspredict-easy-train` | 30 | Easy 训练集（排除 8 个 held-out） |
+| `dspredict-easy-test` | 8 | Easy 测试集（held-out） |
+| `dspredict-hard` | 54 | Hard 全集 |
+| `dspredict-hard-train` | 44 | Hard 训练集（排除 10 个 held-out） |
+| `dspredict-hard-test` | 10 | Hard 测试集（held-out） |
+| `dspredict-swap` | 67 | Target-swap 合成任务 |
+| `dspredict-mledojo` | 60 | MLE-Dojo benchmark |
+| `dspredict-mle-bench` | 47 | MLE-Bench（待下载数据） |
+
+Test set 选择标准见 `docs/iterative_self_improvement.md`。
 
 ## 评测配置
 

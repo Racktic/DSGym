@@ -39,7 +39,7 @@ def add_eval_parser(subparsers):
     
     # Dataset configuration
     parser.add_argument("--dataset", type=str, required=True,
-                       choices=["daeval", "discoverybench", "qrdata", "dabstep", "dspredict-easy", "dspredict-hard", "dspredict-swap", "dspredict-hard-swap", "dspredict-mledojo", "dspredict-hard-rejected", "dspredict-easy-claude-retry", "dspredict-mledojo-remaining", "dspredict-mle-bench", "bio"],
+                       choices=["daeval", "discoverybench", "qrdata", "dabstep", "dspredict-easy", "dspredict-hard", "dspredict-swap", "dspredict-hard-swap", "dspredict-mledojo", "dspredict-hard-rejected", "dspredict-easy-claude-retry", "dspredict-mledojo-remaining", "dspredict-mle-bench", "dspredict-easy-train", "dspredict-easy-test", "dspredict-hard-train", "dspredict-hard-test", "bio"],
                        help="Dataset to evaluate on")
     parser.add_argument("--limit", type=int, default=None,
                        help="Number of samples to evaluate")
@@ -206,7 +206,7 @@ def run_eval(args) -> int:
         dataset_name = args.dataset
         if "dspredict" in dataset_name:
             # Map CLI name to split key: dspredict-mledojo -> mle_dojo
-            _split_map = {"mledojo": "mle_dojo", "mledojo-remaining": "mle_dojo_remaining", "hard-swap": "hard_swap", "hard-rejected": "hard_rejected", "easy-claude-retry": "easy_claude_retry", "mle-bench": "mle_bench"}
+            _split_map = {"mledojo": "mle_dojo", "mledojo-remaining": "mle_dojo_remaining", "hard-swap": "hard_swap", "hard-rejected": "hard_rejected", "easy-claude-retry": "easy_claude_retry", "mle-bench": "mle_bench", "easy-train": "easy_train", "easy-test": "easy_test", "hard-train": "hard_train", "hard-test": "hard_test"}
             raw_split = dataset_name.split("-", 1)[-1]  # "easy", "hard", "swap", "mledojo"
             dataset_config["split"] = _split_map.get(raw_split, raw_split)
             dataset_name = dataset_name.split("-")[0]
