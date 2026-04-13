@@ -340,8 +340,18 @@ class AllocatedCodeToolGroup:
         if self.allocated_container is not None:
             return
 
-        response = self.client.post(f"{self.manager_url}/allocate")
-        response.raise_for_status()
+        # Retry with exponential backoff on 503 (all containers busy)
+        import time as _time
+        max_retries = 30
+        for attempt in range(max_retries):
+            response = self.client.post(f"{self.manager_url}/allocate")
+            if response.status_code == 503 and attempt < max_retries - 1:
+                wait = min(10 * (attempt + 1), 60)  # 10s, 20s, ... up to 60s
+                print(f"⏳ All containers busy (attempt {attempt + 1}/{max_retries}), retrying in {wait}s...")
+                _time.sleep(wait)
+                continue
+            response.raise_for_status()
+            break
         result = response.json()
         self.allocated_container = result["container_id"]
 

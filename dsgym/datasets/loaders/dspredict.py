@@ -103,6 +103,7 @@ class DSPredictDataset(BaseDataset):
             "easy_test":    ("easy_test.json",    "dspredict-easy"),
             "hard_train":   ("hard_train.json",   "dspredict-hard"),
             "hard_test":    ("hard_test.json",    "dspredict-hard"),
+            "hard_train_gpt_remaining": ("hard_train_gpt_remaining.json", "dspredict-hard"),
         }
 
         if split in SPLIT_CONFIG:

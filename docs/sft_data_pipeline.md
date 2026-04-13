@@ -29,7 +29,7 @@
 ```
 
 #### 1. 找 best turn
-从 `task_memory` 中找到 `score == final_best_score` 的轮次索引。
+从 `task_memory` 中找到 `score == final_best_score` 的轮次索引。**如果 best_turn_idx <= 1，跳过该 trajectory**（太短，学习信号不足）。
 
 #### 2. 截断 conversation
 保留从开头到 best turn 的所有 system/user/assistant 消息。
@@ -182,6 +182,22 @@ for s in data:
 | Qwen3-235B V6 (easy) | easy | 35 | `distill_qwen3_235b_v6_easy_truncAF.json` |
 | Qwen3-235B V5 (mledojo) | mledojo | 54 | `distill_qwen3_235b_v5_mledojo_truncAF.json` |
 | Qwen3-235B V6 (swap r1-r4) | swap | 65/65/62/67 | `distill_qwen3_235b_v6_swap_run{1-4}_truncAF.json` |
+| Gemini Flash (mledojo remaining) | mledojo | 20 | `distill_gemini_flash_mledojo_remaining_truncAF.json` |
+| Coder 480B (mledojo) | mledojo | 43 | `distill_coder480_mledojo_truncAF.json` |
+| Qwen3-235B V6 (hard train) | hard | 23 | `distill_qwen3_235b_v6_hard_train_truncAF.json` |
+| Coder 480B V6 (hard train) | hard | 28 | `distill_coder480_v6_hard_train_truncAF.json` |
+| Gemini Flash (hard train) | hard | 19 | `distill_gemini_flash_hard_train_truncAF.json` |
+| Claude Sonnet 4.6 (hard train) | hard | 22 | `distill_claude_sonnet_hard_train_truncAF.json` |
+| GPT-5.2 (hard train) | hard | 36 | `distill_gpt5_hard_train_truncAF.json` |
+
+## 过滤规则
+
+转换时跳过的 trajectory：
+1. `success=False` — 任务未成功完成
+2. `final_best_score=None` — 没有产出有效分数
+3. `best_turn_idx <= 1` — best score 在前两轮就达到了，学习信号不足
+4. 最后一轮 assistant 没有 `submission.csv` — 不 fallback，直接跳过
+5. assistant 缺少 `<python>`（代码被截断）— 删掉该 turn 和前后 user
 
 ## 注意事项
 

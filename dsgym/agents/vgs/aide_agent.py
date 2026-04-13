@@ -39,6 +39,7 @@ from .aide_prompts import (
     AIDE_SUMMARY_PROMPT_V5,
     AIDE_SUMMARY_PROMPT_V6,
 )
+from dsgym.datasets.prompts.aide_new_prompt import SYSTEM_PROMPT_DSPREDICT as AIDE_UNIFIED_PROMPT
 from .teacher_agent import (
     TurnRecord,
     StructuredTrajectory,
@@ -870,12 +871,18 @@ class AIDEAgent(DSPredictReActAgent):
     def _inject_system_prompt(
         self, conversation: List[Dict[str, str]]
     ) -> List[Dict[str, str]]:
-        """Prepend AIDE system prompt to conversation."""
-        system_prompt = AIDE_SYSTEM_PROMPT_V6 if self.memory_version == "v6" else AIDE_SYSTEM_PROMPT
+        """Set system prompt for conversation."""
+        if self.memory_version == "v6":
+            # V6: use unified prompt (replaces dataset prompt entirely)
+            system_prompt = AIDE_UNIFIED_PROMPT
+        else:
+            # V4/V5: prepend AIDE prompt to dataset prompt
+            system_prompt = AIDE_SYSTEM_PROMPT
+            if conversation and conversation[0].get("role") == "system":
+                system_prompt = system_prompt + "\n\n" + conversation[0]["content"]
+
         if conversation and conversation[0].get("role") == "system":
-            conversation[0]["content"] = (
-                system_prompt + "\n\n" + conversation[0]["content"]
-            )
+            conversation[0]["content"] = system_prompt
         else:
             conversation.insert(
                 0, {"role": "system", "content": system_prompt}

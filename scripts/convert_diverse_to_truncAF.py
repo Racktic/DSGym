@@ -115,6 +115,11 @@ def build_truncAF(traj_path, split_name):
     if best_turn_idx is None:
         return None
 
+    # Skip trajectories where best score was achieved too early (turn 0 or 1)
+    # These have too little learning signal for SFT
+    if best_turn_idx <= 1:
+        return None
+
     # Step 2: Truncate conversation to best turn
     target_asst_count = best_turn_idx + 1
     truncated = []
