@@ -38,17 +38,22 @@
 
 ## 合并文件
 
-| 文件 | Easy | Swap | MLE Dojo | 总 | 说明 |
-|------|------|------|----------|-----|------|
-| `distill_all_truncAF.json` | 160 | 259 (r1-r4) | 54 (235B) | 473 | 最早版本，swap 4 轮全包含 |
-| `distill_diverse_truncAF.json` | 160 | 65 (r1) | 54 (235B) | 279 | 去掉 swap r2-r4 |
-| **`distill_diverse_v2_truncAF.json`** | **160** | **65 (r1)** | **150 (235B+Gemini+Coder)** | **375** | **推荐使用**。最新版，mledojo 含全部 3 teacher |
+| 文件 | Easy | Swap | MLE Dojo | Hard | 总 | 说明 |
+|------|------|------|----------|------|-----|------|
+| `distill_all_truncAF.json` | 160 | 259 (r1-r4) | 54 (235B) | - | 473 | 最早版本，swap 4 轮全包含 |
+| `distill_diverse_truncAF.json` | 160 | 65 (r1) | 54 (235B) | - | 279 | 去掉 swap r2-r4 |
+| `distill_diverse_v2_truncAF.json` | 160 | 65 (r1) | 150 (3 teacher) | - | 375 | mledojo 含全部 3 teacher |
+| `distill_diverse_v3_truncAF.json` | 129 | 52 | 133 | - | 314 | v2 去掉 easy test + 无 submission fallback |
+| `distill_diverse_v3_with_hard_truncAF.json` | 129 | 52 | 132 | 51 | 364 | v3 + 235B/Coder hard train |
+| **`distill_diverse_v4_truncAF.json`** | **129** | **52** | **132** | **128** | **441** | **推荐使用**。v3_with_hard + Gemini/Claude/GPT hard train |
 
-## 独立来源合计（去重）
+### v4 按 teacher 分布
 
-| Split | 样本 |
-|-------|------|
-| easy (4 teachers) | 160 |
-| swap (4 rounds) | 259 |
-| mledojo (3 teachers) | 150 |
-| **合计** | **569** |
+| Teacher | 样本 |
+|---------|------|
+| Qwen3-235B | 141 |
+| Gemini Flash | 101 |
+| Coder 480B | 71 |
+| GPT-5.2 | 66 |
+| Claude Sonnet 4.6 | 62 |
+| **合计** | **441** |
