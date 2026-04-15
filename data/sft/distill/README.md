@@ -35,6 +35,7 @@
 | `distill_gemini_flash_mledojo_truncAF.json` | Gemini 3 Flash (前 34 个 task) | 33 |
 | `distill_gemini_flash_mledojo_remaining_truncAF.json` | Gemini 3 Flash (后 26 个 task) | 20 |
 | `distill_coder480_mledojo_truncAF.json` | Qwen3-Coder-480B (45/60 完成) | 43 |
+| `distill_claude_sonnet_mledojo_truncAF.json` | Claude Sonnet 4.6 (59/60 完成) | 51 |
 
 ## 合并文件
 
@@ -45,7 +46,8 @@
 | `distill_diverse_v2_truncAF.json` | 160 | 65 (r1) | 150 (3 teacher) | - | 375 | mledojo 含全部 3 teacher |
 | `distill_diverse_v3_truncAF.json` | 129 | 52 | 133 | - | 314 | v2 去掉 easy test + 无 submission fallback |
 | `distill_diverse_v3_with_hard_truncAF.json` | 129 | 52 | 132 | 51 | 364 | v3 + 235B/Coder hard train |
-| **`distill_diverse_v4_truncAF.json`** | **129** | **52** | **132** | **128** | **441** | **推荐使用**。v3_with_hard + Gemini/Claude/GPT hard train |
+| `distill_diverse_v4_truncAF.json` | 129 | 52 | 132 | 128 | 441 | v3_with_hard + Gemini/Claude/GPT hard train |
+| **`distill_diverse_v5_truncAF.json`** | **129** | **52** | **183** | **128** | **492** | **推荐使用**。v4 + Claude Sonnet 4.6 mledojo (51) |
 
 ### v4 按 teacher 分布
 
@@ -57,3 +59,14 @@
 | GPT-5.2 | 66 |
 | Claude Sonnet 4.6 | 62 |
 | **合计** | **441** |
+
+### v5 按 teacher 分布
+
+| Teacher | 样本 |
+|---------|------|
+| Qwen3-235B | 141 |
+| Claude Sonnet 4.6 | 113 |
+| Gemini Flash | 101 |
+| Coder 480B | 71 |
+| GPT-5.2 | 66 |
+| **合计** | **492** |
