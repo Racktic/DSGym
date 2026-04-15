@@ -45,7 +45,7 @@ At each step, you must output TWO blocks in this exact order:
   <best_score> = the best CV/validation score across all attempts so far.
 - Do NOT use plotting libraries. Use text-based summaries and statistics only.
 - Code execution is continuous — variables persist across steps.
-- When generating final submission, save to /submission/submission.csv.
+- **Save predictions to /submission/submission.csv at the end of EVERY turn's code** (not only the final turn). Every turn that trains a model must end by generating test-set predictions and writing them to /submission/submission.csv. This guarantees a valid submission persists even if a later turn crashes. The final turn will overwrite it with your best approach.
 """
 
 # ================================================================
@@ -248,7 +248,7 @@ At each step, you must only output TWO blocks in this exact order:
     print(f"CV Score (mean): {mean:.6f}")
 - Do NOT use plotting libraries. Use text-based summaries and statistics only.
 - Code execution is continuous — variables persist across steps.
-- When generating final submission, save to /submission/submission.csv.
+- **Save predictions to /submission/submission.csv at the end of EVERY turn's code** (not only the final turn). Every turn that trains a model must end by generating test-set predictions and writing them to /submission/submission.csv. This guarantees a valid submission persists even if a later turn crashes. The final turn will overwrite it with your best approach.
 """
 
 AIDE_SUMMARY_PROMPT_V6 = """\

@@ -88,16 +88,41 @@ _MODEL_PATTERNS = [
     (r"lightgbm|lgbm|LGBMClassifier|LGBMRegressor", "LightGBM"),
     (r"\bxgb|xgboost|XGB", "XGBoost"),
     (r"random.?forest|RandomForest", "RandomForest"),
+    (r"HistGradientBoosting|hist.?gradient.?boost", "HistGradientBoosting"),
     (r"gradient.?boost|GradientBoosting", "GradientBoosting"),
+    (r"\bAdaBoost\b|AdaBoostClassifier|AdaBoostRegressor", "AdaBoost"),
+    (r"BaggingClassifier|BaggingRegressor", "Bagging"),
     (r"logistic.?regression|LogisticRegression", "LogisticRegression"),
+    (r"ElasticNet", "ElasticNet"),
+    (r"HuberRegressor|huber.?loss", "HuberRegressor"),
     (r"\bRidge\b", "Ridge"),
     (r"\bLasso\b", "Lasso"),
-    (r"\bSVC\b|\bSVR\b|support.?vector", "SVM"),
-    (r"neural.?net|\bMLP\b|keras|torch|nn\.", "NeuralNet"),
+    (r"LinearSVC|LinearSVR", "LinearSVM"),
+    (r"\bSVC\b|\bSVR\b|NuSVC|NuSVR|support.?vector", "SVM"),
     (r"\bKNN\b|KNeighbors", "KNN"),
     (r"decision.?tree|DecisionTree", "DecisionTree"),
     (r"extra.?trees?|ExtraTrees", "ExtraTrees"),
     (r"ensembl|VotingClassifier|VotingRegressor|StackingClassifier|StackingRegressor", "Ensemble"),
+    # Time series
+    (r"prophet|Prophet", "Prophet"),
+    (r"\bARIMA\b|SARIMAX|statsmodels.*ARIMA", "ARIMA"),
+    # Text / NLP
+    (r"TfidfVectorizer|tfidf|TF-?IDF", "TFIDF"),
+    (r"CountVectorizer|HashingVectorizer", "BoW"),
+    (r"word2vec|Word2Vec|fasttext|FastText|gensim", "WordEmbedding"),
+    (r"\bBERT\b|distil.?bert|RoBERTa|DeBERTa|sentence.?transformers", "Transformer-NLP"),
+    # Vision / sequence neural nets
+    (r"ResNet|resnet\d", "ResNet"),
+    (r"EfficientNet|efficientnet", "EfficientNet"),
+    (r"vision.?transformer|\bViT\b|deit", "ViT"),
+    (r"\bUNet\b|U-?Net", "UNet"),
+    (r"\bLSTM\b|GRU|recurrent", "RNN"),
+    (r"convolutional|\bCNN\b|Conv2d|Conv1d|conv_block", "CNN"),
+    # Tabular DL
+    (r"TabNet|tab_net", "TabNet"),
+    (r"TabPFN|tab_pfn", "TabPFN"),
+    # Generic neural net (catch-all, last)
+    (r"keras|torch\.nn|tensorflow|pytorch|nn\.Module|nn\.Linear|nn\.Sequential|MLPClassifier|MLPRegressor|\bMLP\b|neural.?net", "NeuralNet"),
 ]
 
 

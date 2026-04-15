@@ -45,6 +45,7 @@ from .teacher_agent import (
     StructuredTrajectory,
 )
 from .memory import CrossTaskMemory
+from .smart_retriever import SmartRetriever
 
 
 def _extract_xml_tag(text: str, tag: str) -> Optional[str]:
@@ -93,10 +94,50 @@ class AIDEAgent(DSPredictReActAgent):
         self.memory_version = kwargs.pop("memory_version", "v4")
         self.no_task_memory = kwargs.pop("no_task_memory", False)
         self.no_cross_memory = kwargs.pop("no_cross_memory", False)
+        # When True, read cross-task memory but do NOT write new entries to it.
+        # Useful when the memory file is an offline-built artifact (e.g., enriched JSON
+        # paired with an .npy embedding file — uncontrolled writes would corrupt the
+        # alignment since we don't update the embedding index).
+        self.no_cross_memory_write = kwargs.pop("no_cross_memory_write", False)
         self.log_degradation = kwargs.pop("log_degradation", False)
         super().__init__(backend, model, **kwargs)
         os.makedirs(self.trajectory_output_dir, exist_ok=True)
         self.cross_task_memory = CrossTaskMemory(memory_path)
+
+        # Opt-in smart retriever: auto-detect when memory_path points to an
+        # enriched file (_enriched.json) with a matching embeddings .npy nearby.
+        self.smart_retriever: Optional[SmartRetriever] = None
+        try:
+            if memory_path.endswith("_enriched.json"):
+                emb_path = memory_path.replace("_enriched.json", "_embeddings.npy")
+                if os.path.exists(memory_path) and os.path.exists(emb_path):
+                    base_url = os.environ.get(
+                        "LITELLM_BASE_URL", "https://litellm.nbdevenv.xiaoaojianghu.fun"
+                    )
+                    litellm_api_key = os.environ.get("LITELLM_API_KEY", "")
+                    openai_api_key = os.environ.get("OPENAI_API_KEY", "")
+                    if litellm_api_key and openai_api_key:
+                        self.smart_retriever = SmartRetriever(
+                            enriched_json_path=memory_path,
+                            embeddings_path=emb_path,
+                            litellm_base_url=base_url,
+                            litellm_api_key=litellm_api_key,
+                            openai_api_key=openai_api_key,
+                        )
+                        print(f"[AIDEAgent] SmartRetriever enabled: {memory_path}")
+                    else:
+                        missing = []
+                        if not litellm_api_key:
+                            missing.append("$LITELLM_API_KEY")
+                        if not openai_api_key:
+                            missing.append("$OPENAI_API_KEY")
+                        print(
+                            f"[AIDEAgent] enriched memory detected but {', '.join(missing)} unset — "
+                            "falling back to naive CrossTaskMemory retrieval"
+                        )
+        except Exception as e:
+            print(f"[AIDEAgent] SmartRetriever init failed ({e!s}); falling back to naive retrieval")
+            self.smart_retriever = None
 
     def solve_task(self, sample: Dict[str, Any], **kwargs) -> Dict[str, Any]:
         start_time = time.time()
@@ -396,7 +437,7 @@ class AIDEAgent(DSPredictReActAgent):
                             else:
                                 ct_insight = ct.get("insight", "")
 
-                            if not self.no_cross_memory:
+                            if not self.no_cross_memory and not self.no_cross_memory_write:
                                 self.cross_task_memory.store_from_summary(
                                     challenge_name=challenge_name,
                                     task_description=task_description,
@@ -568,7 +609,7 @@ class AIDEAgent(DSPredictReActAgent):
             best_entry = self._get_best_task_memory_entry(task_memory)
             best_plan = best_entry.get("notes", "") if best_entry else ""
             best_model = best_entry.get("model", "") if best_entry else ""
-            if not self.no_cross_memory:
+            if not self.no_cross_memory and not self.no_cross_memory_write:
                 self.cross_task_memory.store_task_summary(
                     challenge_name=challenge_name,
                     task_description=task_description,
@@ -910,11 +951,30 @@ class AIDEAgent(DSPredictReActAgent):
         # Append cross-task memory
         skip_cross_memory = self.no_cross_memory or (self.no_draft_memory and action == "draft")
         if not skip_cross_memory:
-            cross_task_context = self.cross_task_memory.format_for_prompt(
-                challenge_name=challenge_name,
-                task_description=task_description,
-                current_action=action,
-            )
+            cross_task_context = ""
+            if self.smart_retriever is not None:
+                try:
+                    entries = self.smart_retriever.retrieve(
+                        current_task_description=task_description,
+                        current_action=action,
+                        challenge_name=challenge_name,
+                        top_k=3,
+                        pool_size=15,
+                    )
+                    cross_task_context = SmartRetriever.format_for_prompt(entries)
+                except Exception as e:
+                    print(f"[AIDEAgent] SmartRetriever.retrieve failed ({e!s}); falling back to naive")
+                    cross_task_context = self.cross_task_memory.format_for_prompt(
+                        challenge_name=challenge_name,
+                        task_description=task_description,
+                        current_action=action,
+                    )
+            else:
+                cross_task_context = self.cross_task_memory.format_for_prompt(
+                    challenge_name=challenge_name,
+                    task_description=task_description,
+                    current_action=action,
+                )
             if cross_task_context:
                 memory_section = memory_section + "\n\n" + cross_task_context
 

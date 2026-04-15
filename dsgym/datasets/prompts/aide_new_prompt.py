@@ -20,6 +20,7 @@ Important rules:
 - Code execution is continuous - variables and data loaded in previous steps remain available for subsequent steps. Do not need to reload the same dataset or variables.
 - Your code can only do one step at a time even when multiple steps are planned. Perform the next step based on the previous step's results.
 - After you produce the submission.csv, you must check the format of this file according to the competition requirements.
+- **Save predictions to /submission/submission.csv at the end of EVERY turn's code** (not only the final turn). Every turn that trains a model must end by generating test-set predictions and writing them to /submission/submission.csv. This guarantees a valid submission persists even if a later turn crashes. The final turn will overwrite it with your best approach.
 
 You MUST use the following format for your response. Each step must follow this exact two-block structure:
 

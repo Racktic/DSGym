@@ -78,9 +78,29 @@ Test set 选择标准见 `docs/iterative_self_improvement.md`。
 | `--memory-version` | `v4` | Memory 版本。`v4`=LLM summary, `v5`=V2 style cross-task, `v6`=简化输出（只有 `<goal>` + `<python>`） |
 | `--memory-path` | None | Cross-task memory 文件路径。**启用 cross-task memory 必须同时传 `--memory-version` 和 `--memory-path`** |
 | `--no-cross-memory` | False | 完全禁用 cross-task memory 的读写（即使设了 memory-version） |
+| `--no-cross-memory-write` | False | **只读模式**：读 cross-task memory 但不写入新 entry。用于 offline 构建的 enriched memory（JSON + `.npy` embedding 索引对齐），avoid agent 运行时 append 导致 JSON 与 `.npy` 失配。⚠️ 用 SmartRetriever（`*_enriched.json`）时必须加此 flag |
 | `--no-task-memory` | False | 不将 in-task memory 注入 prompt（summary LLM 仍会运行） |
 | `--no-draft-memory` | False | Draft 阶段不注入 cross-task memory |
 | `--log-degradation` | False | V5/V6: 将 improve 失败（score 下降）也记录到 cross-task memory |
+
+### AIDE System Prompt 行为
+
+⚠️ 2026-04-14 起，`dsgym/datasets/prompts/aide_new_prompt.py` 里 **`SYSTEM_PROMPT_DSPREDICT`**（v6 memory 用此 prompt，通过 `AIDE_UNIFIED_PROMPT` alias）加了一条规则：
+
+> Save predictions to /submission/submission.csv at the end of EVERY turn's code (not only the final turn).
+
+目的：消除 "只在 final turn 写 submission → final 崩 → 没有 valid submission" 的失败模式。这会影响所有 AIDE 运行（不只新实验），对比 pre-2026-04-14 的 baseline 数据要注意这点。
+
+### SmartRetriever（离线构建的 enriched memory）
+
+当 `--memory-path` 指向以 `_enriched.json` 结尾的文件，且同目录下存在 `_embeddings.npy` 时，AIDE 会自动启用 **SmartRetriever**（task-aware 检索）：
+
+- 离线产物：`scripts/enrich_memory_metadata.py` + `scripts/add_insight_embeddings.py` 产生的 `*_enriched.json` / `*_embeddings.npy` / `*_insight_embeddings.npy`
+- 运行时行为：对每个 (task, action) 预取 15 条候选（按 embedding 相似度 + hard filter domain/task_type/entry_type），每 turn 随机抽 3 条注入 prompt
+- **必需环境变量**：
+  - `LITELLM_API_KEY`：Claude 分类 current task 的 {domain, task_type} 经 LiteLLM proxy
+  - `OPENAI_API_KEY`：text-embedding-3-small 经 api.openai.com 直接调（LiteLLM proxy 不暴露 embedding 模型）
+- **必须配合 `--no-cross-memory-write`**：否则 agent 会 append 新 entry 到 JSON，破坏与 `.npy` 的对齐
 
 ## Memory 参数组合速查
 
@@ -91,6 +111,7 @@ Test set 选择标准见 `docs/iterative_self_improvement.md`。
 | V6 格式 + 无 cross-task + 无 in-task | `--memory-version v6 --no-cross-memory --no-task-memory` |
 | V6 + cross-task memory | `--memory-version v6 --memory-path /path/to/cross_task_memory.json` |
 | V6 + cross-task + best strategy | `--memory-version v6 --memory-path /path/to/memory.json --best-node-strategy best` |
+| V6 + SmartRetriever（enriched memory 只读） | `--memory-version v6 --memory-path /path/to/*_enriched.json --no-cross-memory-write`（需要 `$LITELLM_API_KEY` + `$OPENAI_API_KEY`） |
 
 ## 常见用法示例
 

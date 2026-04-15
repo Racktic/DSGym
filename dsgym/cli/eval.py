@@ -85,6 +85,8 @@ def add_eval_parser(subparsers):
                        help="AIDE: skip task-internal memory injection into prompts (summary LLM still runs)")
     parser.add_argument("--no-cross-memory", action="store_true", default=False,
                        help="AIDE: disable cross-task memory (no read/write)")
+    parser.add_argument("--no-cross-memory-write", action="store_true", default=False,
+                       help="AIDE: read cross-task memory but do NOT write new entries (use with offline-built enriched memory + .npy to avoid corrupting alignment)")
 
     parser.add_argument("--log-degradation", action="store_true", default=False,
                        help="AIDE V5: also log failed improve attempts (score degradation) to cross-task memory")
@@ -165,6 +167,8 @@ def run_eval(args) -> int:
                 aide_kwargs["no_task_memory"] = True
             if args.no_cross_memory:
                 aide_kwargs["no_cross_memory"] = True
+            if args.no_cross_memory_write:
+                aide_kwargs["no_cross_memory_write"] = True
             if args.log_degradation:
                 aide_kwargs["log_degradation"] = True
             agent = AIDEAgent(
