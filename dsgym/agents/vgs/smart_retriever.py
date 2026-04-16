@@ -8,8 +8,7 @@ At retrieval time:
   1. Classify the current task (Claude) to get {domain, task_type, metric, data_size}
   2. Embed the current task description (text-embedding-3-small)
   3. HARD FILTER on domain + task_type match (with "other" as wildcard)
-  4. Rank remaining entries with:
-       score = 0.6 * cosine + 0.3 * entry_type_weight + 0.1 * score_magnitude_norm
+  4. Rank remaining entries by cosine similarity
   5. Optional challenge_name boost (x2) for entries sharing a long word with current challenge
   6. Per-task cap (max 2) and return top_k
 """
@@ -133,6 +132,7 @@ class SmartRetriever:
         embedding_model: str = "text-embedding-3-small",
         metadata_model: str = "claude-sonnet-4.6",
         emb_dim: int = 1536,
+        retrieval_log_path: Optional[str] = None,
     ):
         if OpenAI is None:
             raise RuntimeError("openai package not installed; required for SmartRetriever")
@@ -170,6 +170,12 @@ class SmartRetriever:
         # Two separate clients: LiteLLM proxy for Claude chat, direct OpenAI for embeddings.
         self._chat_client = OpenAI(api_key=litellm_api_key, base_url=litellm_base_url)
         self._embed_client = OpenAI(api_key=openai_api_key)  # no base_url -> api.openai.com
+
+        # Optional debug log: one JSONL line per (task, action) retrieval with top-K cosines.
+        # Used offline to pick a similarity threshold.
+        self.retrieval_log_path: Optional[str] = retrieval_log_path
+        if retrieval_log_path:
+            os.makedirs(os.path.dirname(os.path.abspath(retrieval_log_path)) or ".", exist_ok=True)
 
         # Caches
         self._meta_cache: Dict[str, Dict[str, str]] = {}
@@ -262,7 +268,19 @@ class SmartRetriever:
 
     @staticmethod
     def _entry_type_weight(entry_type: str, current_action: str) -> float:
-        """Replicates the prioritization logic from CrossTaskMemory.retrieve()."""
+        """DEPRECATED — not currently wired into ranking.
+
+        Intent: soft-boost entries whose `entry_type` matches the current agent
+        action (e.g., during `improve`, prefer `improvement` entries over others).
+
+        Why unused: `_build_pool` now applies a HARD filter via `required_type`
+        (action→entry_type: draft→draft_success, improve→improvement,
+        debug→debug_fix). That filter reduces the pool to exactly one entry_type,
+        which makes this soft weight redundant. To re-enable soft ranking,
+        first remove the `required_type` filter in `_build_pool`.
+
+        Kept here as a placeholder for a future soft-ranking variant.
+        """
         if current_action in ("debug",):
             table = {"debug_fix": 3.0, "improvement": 1.5, "task_summary": 1.0, "draft_success": 1.0}
         elif current_action in ("improve", "exploit"):
@@ -345,22 +363,44 @@ class SmartRetriever:
         cand_idx = kept_idx[top_local]
         cand_cos = cosines[top_local]
 
-        cand_scores = np.array([
-            abs(self.entries_raw[i].get("score") or 0.0) for i in cand_idx
-        ], dtype=np.float32)
-        max_score = float(cand_scores.max()) if cand_scores.size and cand_scores.max() > 0 else 1.0
-        score_norm = cand_scores / max_score if max_score > 0 else np.zeros_like(cand_scores)
-
         rerank = []
         for pos, i in enumerate(cand_idx):
             e = self.entries_raw[i]
-            s = 0.8 * float(cand_cos[pos]) + 0.2 * float(score_norm[pos])
+            s = float(cand_cos[pos])
             if challenge_name_boost and challenge_name:
                 if self._share_long_word(challenge_name, e.get("challenge_name", ""), min_len=4):
                     s *= 2.0
             rerank.append((s, i))
 
         rerank.sort(key=lambda x: x[0], reverse=True)
+
+        # Debug dump: one JSONL line per (task, action) retrieval.
+        if self.retrieval_log_path:
+            top_k_log = 10
+            log_entries = []
+            for pos, i in enumerate(cand_idx[:top_k_log]):
+                e = self.entries_raw[i]
+                log_entries.append({
+                    "challenge_name": e.get("challenge_name", ""),
+                    "entry_type": e.get("entry_type", ""),
+                    "cosine": float(cand_cos[pos]),
+                    "domain": e.get("domain", ""),
+                    "task_type": e.get("task_type", ""),
+                })
+            record = {
+                "task_desc_hash": task_hash,
+                "challenge_name": challenge_name,
+                "current_action": current_action,
+                "classified_meta": cur_meta,
+                "kept_pool_size": int(kept_idx.size),
+                "top_k": log_entries,
+            }
+            try:
+                with self._cache_lock:  # serialize appends across worker threads
+                    with open(self.retrieval_log_path, "a", encoding="utf-8") as f:
+                        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            except Exception as e:
+                print(f"[SmartRetriever] retrieval_log write failed: {e!s}")
 
         # Per-task cap, then take top `pool_size`
         pool: List[int] = []

@@ -117,14 +117,18 @@ class AIDEAgent(DSPredictReActAgent):
                     litellm_api_key = os.environ.get("LITELLM_API_KEY", "")
                     openai_api_key = os.environ.get("OPENAI_API_KEY", "")
                     if litellm_api_key and openai_api_key:
+                        retrieval_log_path = os.environ.get("DSGYM_RETRIEVAL_LOG", "") or None
                         self.smart_retriever = SmartRetriever(
                             enriched_json_path=memory_path,
                             embeddings_path=emb_path,
                             litellm_base_url=base_url,
                             litellm_api_key=litellm_api_key,
                             openai_api_key=openai_api_key,
+                            retrieval_log_path=retrieval_log_path,
                         )
                         print(f"[AIDEAgent] SmartRetriever enabled: {memory_path}")
+                        if retrieval_log_path:
+                            print(f"[AIDEAgent] retrieval cosines will be logged to: {retrieval_log_path}")
                     else:
                         missing = []
                         if not litellm_api_key:
