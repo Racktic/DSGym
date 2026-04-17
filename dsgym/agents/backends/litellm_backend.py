@@ -57,7 +57,7 @@ class LiteLLMBackend(BaseBackend):
         self.timeout = timeout
         self.max_retries = max_retries
         self.is_reasoning_model = self._is_reasoning_model(model_name)
-        
+
         # Set generation parameters based on model type
         if self.is_reasoning_model:
             # Reasoning models don't support temperature/top_p and use max_completion_tokens
@@ -69,14 +69,24 @@ class LiteLLMBackend(BaseBackend):
             # Only include top_p if explicitly set to non-default value or when temperature is 0
             # This avoids parameter conflicts with models that don't support both
             self.generation_params = {
-                "temperature": temperature, 
+                "temperature": temperature,
                 "max_tokens": max_tokens
             }
             if self.model_name.startswith("gpt-5"):
                 self.generation_params["reasoning_effort"] = "medium"
             if top_p != 1.0:
                 self.generation_params["top_p"] = top_p
-        
+
+        # Optional: pass enable_thinking (Qwen3 / DashScope-compatible) through the
+        # OpenAI-compatible request body via litellm's extra_body. Only applied when
+        # explicitly supplied by the CLI (--no-think sets enable_thinking=False); other
+        # providers will drop unknown body keys (DashScope requires this key to be False
+        # for non-streaming calls). This is opt-in and does not affect default behaviour.
+        if "enable_thinking" in kwargs:
+            self.generation_params.setdefault("extra_body", {})
+            if isinstance(self.generation_params["extra_body"], dict):
+                self.generation_params["extra_body"]["enable_thinking"] = kwargs["enable_thinking"]
+
         self._setup_litellm()
     
     def _is_reasoning_model(self, model_name: str) -> bool:
