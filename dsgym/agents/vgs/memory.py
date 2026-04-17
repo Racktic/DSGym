@@ -34,6 +34,7 @@ class MemoryEntry:
         insight: str,
         entry_type: str = "turn",  # "improvement", "debug_fix", "task_summary"
         timestamp: str = "",
+        scope_caveats: Optional[List[Dict[str, str]]] = None,
     ):
         self.challenge_name = challenge_name
         self.task_description = task_description
@@ -47,9 +48,12 @@ class MemoryEntry:
         self.insight = insight
         self.entry_type = entry_type
         self.timestamp = timestamp or datetime.now().isoformat()
+        # Optional scope caveats appended post-hoc (e.g., via Group-CL critic).
+        # Each item is {"condition": str, "caveat": str, "source": str}.
+        self.scope_caveats: List[Dict[str, str]] = list(scope_caveats or [])
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        d = {
             "challenge_name": self.challenge_name,
             "task_description": self.task_description,
             "turn": self.turn,
@@ -63,6 +67,9 @@ class MemoryEntry:
             "entry_type": self.entry_type,
             "timestamp": self.timestamp,
         }
+        if self.scope_caveats:
+            d["scope_caveats"] = self.scope_caveats
+        return d
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "MemoryEntry":
@@ -79,6 +86,7 @@ class MemoryEntry:
             insight=d.get("insight", ""),
             entry_type=d.get("entry_type", "turn"),
             timestamp=d.get("timestamp", ""),
+            scope_caveats=d.get("scope_caveats"),
         )
 
 

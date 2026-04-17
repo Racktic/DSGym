@@ -488,6 +488,17 @@ class SmartRetriever:
                     f"  [{tag}] Model: {entry.model_type} | "
                     f"Score: {score_str} | {entry.insight}"
                 )
+                # Post-hoc scope caveats (appended via Group-CL critic or manual patching).
+                # Render each as a warning line so the agent can judge applicability.
+                for cav in getattr(entry, "scope_caveats", []) or []:
+                    cond = (cav.get("condition") or "").strip()
+                    msg = (cav.get("caveat") or "").strip()
+                    if not msg:
+                        continue
+                    if cond:
+                        lines.append(f"    ⚠ Scope caveat — when {cond}: {msg}")
+                    else:
+                        lines.append(f"    ⚠ Scope caveat: {msg}")
             lines.append("")
         lines.append("=== END CROSS-TASK MEMORY ===")
         return "\n".join(lines)
