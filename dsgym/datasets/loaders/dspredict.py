@@ -103,6 +103,8 @@ class DSPredictDataset(BaseDataset):
             "easy_test":    ("easy_test.json",    "dspredict-easy"),
             "hard_train":   ("hard_train.json",   "dspredict-hard"),
             "hard_test":    ("hard_test.json",    "dspredict-hard"),
+            "hard_test_variance2": ("hard_test_variance2.json", "dspredict-hard"),
+            "hard_test_variance3": ("hard_test_variance3.json", "dspredict-hard"),
             "hard_train_gpt_remaining": ("hard_train_gpt_remaining.json", "dspredict-hard"),
         }
 

@@ -133,6 +133,8 @@ class SmartRetriever:
         metadata_model: str = "claude-sonnet-4.6",
         emb_dim: int = 1536,
         retrieval_log_path: Optional[str] = None,
+        replay_samples_path: Optional[str] = None,
+        opt_out_tasks: Optional[List[str]] = None,
     ):
         if OpenAI is None:
             raise RuntimeError("openai package not installed; required for SmartRetriever")
@@ -176,6 +178,35 @@ class SmartRetriever:
         self.retrieval_log_path: Optional[str] = retrieval_log_path
         if retrieval_log_path:
             os.makedirs(os.path.dirname(os.path.abspath(retrieval_log_path)) or ".", exist_ok=True)
+
+        # Optional replay mode: when set, retrieve() bypasses random.sample and serves
+        # pre-recorded entry indices from a previous run's trajectories. Makes A/B
+        # comparisons deterministic (same memory content across runs for every
+        # (challenge, action, call_index) triple).
+        #
+        # File format: {"<challenge_name>": {"<action>": [[idx, idx, ...], ...]}}
+        # where the outer list holds one entry list per successive retrieve() call.
+        # Per-task opt-out: tasks where memory is known to hurt (e.g., novozymes
+        # coverage gap). retrieve() returns [] for these, so the agent runs with
+        # no cross-task memory block for that task.
+        self.opt_out_tasks: set = set(opt_out_tasks or [])
+        if self.opt_out_tasks:
+            print(f"[SmartRetriever] memory opt-out for tasks: {sorted(self.opt_out_tasks)}")
+
+        self.replay_samples_path: Optional[str] = replay_samples_path
+        self._replay_samples: Dict[str, Dict[str, List[List[int]]]] = {}
+        # Per (challenge, action) counter for how many times we've served from replay.
+        self._replay_index: Dict[tuple, int] = {}
+        if replay_samples_path:
+            try:
+                with open(replay_samples_path, "r", encoding="utf-8") as f:
+                    self._replay_samples = json.load(f)
+                n_chal = len(self._replay_samples)
+                n_seqs = sum(len(v) for acts in self._replay_samples.values() for v in acts.values())
+                print(f"[SmartRetriever] replay mode ON: {n_chal} challenges, {n_seqs} replay sequences from {replay_samples_path}")
+            except Exception as e:
+                print(f"[SmartRetriever] failed to load replay samples ({e!s}); falling back to live retrieval")
+                self._replay_samples = {}
 
         # Caches
         self._meta_cache: Dict[str, Dict[str, str]] = {}
@@ -439,7 +470,39 @@ class SmartRetriever:
 
         This keeps the pool stable (same 15 per task/action across turns) while
         varying which 3 the agent sees each turn, at zero extra retrieval cost.
+
+        Replay mode: if `self._replay_samples` was loaded at init, retrieve()
+        skips live pool construction entirely and serves pre-recorded indices
+        from a prior run's trajectories. Each successive call for the same
+        (challenge, action) advances a counter so turn-level diversity is
+        preserved exactly as it was in the source run.
+
+        Opt-out: if `challenge_name` is in `self.opt_out_tasks`, return []
+        immediately so the agent runs without any memory block for that task.
         """
+        # Opt-out short-circuit: tasks known to be hurt by memory (coverage gap).
+        if challenge_name and challenge_name in self.opt_out_tasks:
+            return []
+
+        # Replay mode shortcut. Only active when a replay file was loaded AND
+        # the current (challenge, action) has an entry. Any other case falls
+        # through to the normal retrieval path.
+        if self._replay_samples and challenge_name:
+            actions = self._replay_samples.get(challenge_name, {})
+            seqs = actions.get(current_action, [])
+            if seqs:
+                call_key = (challenge_name, current_action)
+                with self._cache_lock:
+                    idx = self._replay_index.get(call_key, 0)
+                    self._replay_index[call_key] = idx + 1
+                # If this call overruns the recorded sequence length, clamp to the
+                # last recorded set (rather than falling through to live retrieval,
+                # which would reintroduce variance we're trying to eliminate).
+                if idx >= len(seqs):
+                    idx = len(seqs) - 1
+                indices = [i for i in seqs[idx] if 0 <= i < len(self.entries_raw)]
+                return [MemoryEntry.from_dict(self.entries_raw[i]) for i in indices]
+
         pool = self._build_pool(
             current_task_description=current_task_description,
             current_action=current_action,
@@ -460,9 +523,15 @@ class SmartRetriever:
 
     # ---------------- formatting ----------------
 
-    @staticmethod
-    def format_for_prompt(entries: List[MemoryEntry]) -> str:
-        """Prompt-ready block, mirrors CrossTaskMemory.format_for_prompt shape."""
+    def format_for_prompt(self, entries: List[MemoryEntry]) -> str:
+        """Prompt-ready block, mirrors CrossTaskMemory.format_for_prompt shape.
+
+        Caveat auto-skip rule: if a caveat's `derived_for_tasks` is a non-empty
+        set that is a subset of `self.opt_out_tasks`, the caveat is not rendered.
+        (The caveat was written to help a task that is now fully opt-out, so it
+        has no target and would only pollute unrelated tasks that happen to
+        retrieve the underlying entry.)
+        """
         if not entries:
             return ""
         lines = [
@@ -490,7 +559,12 @@ class SmartRetriever:
                 )
                 # Post-hoc scope caveats (appended via Group-CL critic or manual patching).
                 # Render each as a warning line so the agent can judge applicability.
+                # Skip caveats whose `derived_for_tasks` are all currently opt-out
+                # (the caveat's target is no longer using memory, so it has no reason to show).
                 for cav in getattr(entry, "scope_caveats", []) or []:
+                    derived_for = set(cav.get("derived_for_tasks", []) or [])
+                    if derived_for and derived_for.issubset(self.opt_out_tasks):
+                        continue  # caveat orphaned by current opt-out policy
                     cond = (cav.get("condition") or "").strip()
                     msg = (cav.get("caveat") or "").strip()
                     if not msg:

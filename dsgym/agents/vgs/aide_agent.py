@@ -118,6 +118,9 @@ class AIDEAgent(DSPredictReActAgent):
                     openai_api_key = os.environ.get("OPENAI_API_KEY", "")
                     if litellm_api_key and openai_api_key:
                         retrieval_log_path = os.environ.get("DSGYM_RETRIEVAL_LOG", "") or None
+                        replay_samples_path = os.environ.get("DSGYM_REPLAY_SAMPLES", "") or None
+                        opt_out_raw = os.environ.get("DSGYM_OPT_OUT_TASKS", "").strip()
+                        opt_out_tasks = [t.strip() for t in opt_out_raw.split(",") if t.strip()] if opt_out_raw else None
                         self.smart_retriever = SmartRetriever(
                             enriched_json_path=memory_path,
                             embeddings_path=emb_path,
@@ -125,10 +128,16 @@ class AIDEAgent(DSPredictReActAgent):
                             litellm_api_key=litellm_api_key,
                             openai_api_key=openai_api_key,
                             retrieval_log_path=retrieval_log_path,
+                            replay_samples_path=replay_samples_path,
+                            opt_out_tasks=opt_out_tasks,
                         )
                         print(f"[AIDEAgent] SmartRetriever enabled: {memory_path}")
                         if retrieval_log_path:
                             print(f"[AIDEAgent] retrieval cosines will be logged to: {retrieval_log_path}")
+                        if replay_samples_path:
+                            print(f"[AIDEAgent] replay-sample mode active: {replay_samples_path}")
+                        if opt_out_tasks:
+                            print(f"[AIDEAgent] opt-out tasks (no memory): {opt_out_tasks}")
                     else:
                         missing = []
                         if not litellm_api_key:
@@ -965,7 +974,7 @@ class AIDEAgent(DSPredictReActAgent):
                         top_k=3,
                         pool_size=15,
                     )
-                    cross_task_context = SmartRetriever.format_for_prompt(entries)
+                    cross_task_context = self.smart_retriever.format_for_prompt(entries)
                 except Exception as e:
                     print(f"[AIDEAgent] SmartRetriever.retrieve failed ({e!s}); falling back to naive")
                     cross_task_context = self.cross_task_memory.format_for_prompt(

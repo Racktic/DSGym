@@ -482,10 +482,7 @@
       {
         "condition": "recursive multi-step forecasting and validation uses a non-recursive one-shot mechanism",
         "caveat": "Recursive 28-day forecasting makes lag_1/lag_7 at step t depend on the model's own predictions at steps t-1, ..., t-7. If validation passes true lag values while test uses self-predictions, error compounds across the horizon. On store-sales-time-series-forecasting v1, CV RMSLE 0.378 -> Kaggle RMSLE 0.534 because of this exact mismatch. Always validate with the same recursive rollout you will use at test time (rolling-origin evaluation) and inspect val-recursive vs val-direct gap.",
-        "source": "store-sales-time-series-forecasting v1 failure (dev_logs/0415.md section 7)",
-        "derived_for_tasks": [
-          "store-sales-time-series-forecasting"
-        ]
+        "source": "store-sales-time-series-forecasting v1 failure (dev_logs/0415.md section 7)"
       }
     ]
   },
@@ -507,17 +504,7 @@
     "domain": "time_series",
     "task_type": "regression",
     "metric": "other",
-    "data_size": "large",
-    "scope_caveats": [
-      {
-        "condition": "task is sub-second sensor signal (ventilator, seismic, accelerometer) or any time series WITHOUT daily/weekly calendar periodicity",
-        "caveat": "`roll_std_7 = groupby('base_id')['y'].shift(1).rolling(7).std()` assumes daily-or-weekly periodicity so that 'roll 7' means 'last week'. On sub-second physics sensor signals (e.g. ventilator pressure: ~80 samples per 3-second breath), there is no week, and triple-stacked groupby+shift+rolling on millions of rows is both semantically wrong AND computationally expensive (Claude V4 ventilator timed out multiple turns trying this). Use within-event rolling windows at an appropriate time-scale instead, e.g. `groupby('breath_id')['u_in'].shift(1).rolling(5)`.",
-        "source": "Claude V4 ventilator-pressure-prediction failure (2026-04-20)",
-        "derived_for_tasks": [
-          "ventilator-pressure-prediction"
-        ]
-      }
-    ]
+    "data_size": "large"
   },
   {
     "challenge_name": "career-con-2019",
@@ -1797,17 +1784,7 @@
     "domain": "other",
     "task_type": "regression",
     "metric": "rmse",
-    "data_size": "small",
-    "scope_caveats": [
-      {
-        "condition": "task involves protein amino acid sequence, point mutations, or enzyme stability (as opposed to RNA secondary structure or RNA degradation)",
-        "caveat": "stanford-covid-vaccine is RNA degradation prediction on mRNA vaccine sequences — the insight about position-wise prediction and TF-IDF/Ridge failure applies to RNA SECONDARY STRUCTURE tasks. Protein amino acid mutation stability (e.g. novozymes-enzyme-stability-prediction) is a fundamentally different problem: predictions are per-single-point-mutation not per-position, and the relevant features are biochemical (BLOSUM substitution matrix, wild-type vs mutant hydrophobicity/volume/polarity difference, physicochemical properties of the mutated residue, structural distance to active site if PDB structure is known) — NOT position tokens, k-mer frequencies, or RNA-specific sequence embeddings. Do NOT assume RNA-task recipes transfer.",
-        "source": "novozymes-enzyme-stability-prediction Claude V1-V5 persistent failure (2026-04-20)",
-        "derived_for_tasks": [
-          "novozymes-enzyme-stability-prediction"
-        ]
-      }
-    ]
+    "data_size": "small"
   },
   {
     "challenge_name": "stanford-covid-vaccine",
@@ -3552,10 +3529,7 @@
       {
         "condition": "training rows > 500k AND feature count > 300 AND per-turn time/memory budget is tight",
         "caveat": "This insight was demonstrated on ~228k rows x 133 cols; LightGBM's 'handle wide data natively' advantage shrinks when the dataset is significantly larger. On ieee-fraud-detection (~590k rows x 434 cols) Gemini V1 kept 27+ features and got AUC 0.89 / Kaggle pct 17.32, while NOMEM chose 'top 15 most predictive features only' and got AUC 0.93 / pct 30.48. For very large wide datasets under tight per-turn budget, consider feature pre-selection (top-N by mutual info or importance from a quick pilot fit) before fitting the full model.",
-        "source": "ieee-fraud-detection Gemini V1 failure (2026-04-19)",
-        "derived_for_tasks": [
-          "ieee-fraud-detection"
-        ]
+        "source": "ieee-fraud-detection Gemini V1 failure (2026-04-19)"
       }
     ]
   },
@@ -4840,20 +4814,14 @@
     "data_size": "medium",
     "scope_caveats": [
       {
-        "condition": "retail/demand/sales panel data with calendar series_id (e.g. store x product x date) AND training rows > 1M AND unique series count > 500",
-        "caveat": "Computing lag_52/lag_104 via groupby('series_id').shift() timed out on store-sales-time-series-forecasting (3M rows, 1782 series). For large retail panels, compute lags on a pivoted (date x series_id) DataFrame then melt back, or use dask/numpy array indexing. This caveat applies ONLY to calendar-indexed retail/demand panel data — NOT to sub-second sensor signals (ventilator, seismic), protein/DNA sequences, or event-level tabular data, where 'lag_52' etc. are not meaningful concepts.",
-        "source": "store-sales-time-series-forecasting v2 failure (2026-04-17)",
-        "derived_for_tasks": [
-          "store-sales-time-series-forecasting"
-        ]
+        "condition": "training rows > 1M OR series count > 500",
+        "caveat": "Computing lag_52/lag_104 via groupby('series_id').shift() timed out on store-sales-time-series-forecasting (3M rows, 1782 series). For large panels, compute lags on a pivoted (date x series_id) DataFrame then melt back, or use dask/numpy array indexing. Verify that lag engineering finishes within the per-turn time budget before investing further iterations in it.",
+        "source": "store-sales-time-series-forecasting v2 failure (2026-04-17)"
       },
       {
         "condition": "test horizon > max training lag window OR history < 2 * max_lag",
         "caveat": "lag_52/lag_104 require enough training history that covers the test period's lookback. On recruit-restaurant-visitor-forecasting (15-day direct forecast), lag features were NaN on most test rows and LightGBM's default NaN handling biased predictions toward early-series low-activity values. Before trusting CV score, check the non-null rate of each lag feature on test rows.",
-        "source": "recruit-restaurant-visitor-forecasting v1 failure (dev_logs/0415.md section 2)",
-        "derived_for_tasks": [
-          "recruit-restaurant-visitor-forecasting"
-        ]
+        "source": "recruit-restaurant-visitor-forecasting v1 failure (dev_logs/0415.md section 2)"
       }
     ]
   },
@@ -9435,17 +9403,7 @@
     "domain": "tabular",
     "task_type": "binary_classification",
     "metric": "auc",
-    "data_size": "medium",
-    "scope_caveats": [
-      {
-        "condition": "task has a small number of semantically meaningful features (<20 features with named concepts like 'age', 'balance', 'tenure', 'geography')",
-        "caveat": "Ensembling CatBoost+XGBoost helped on playground-s5e3 (~12 weather features). On small-feature domain-rich datasets like bank churn (13 features with clear semantic meaning), try simple multiplicative interactions between the 2-3 most predictive columns BEFORE investing in ensembling. On playground-series-s4e1 Claude NOMEM added `Age * NumProducts` interaction early (Kaggle pct 68.81), while Claude V2/V6 with memory pursued CatBoost+XGBoost ensemble + Surname target encoding (pct 50.10/45.50) without ever trying basic feature interactions. Domain-specific FE often beats stacked models on small structured tabular tasks.",
-        "source": "playground-series-s4e1 Claude V2/V6 failure (2026-04-20)",
-        "derived_for_tasks": [
-          "playground-series-s4e1"
-        ]
-      }
-    ]
+    "data_size": "medium"
   },
   {
     "challenge_name": "playground-series-s4e8",
@@ -11345,17 +11303,7 @@
     "domain": "tabular",
     "task_type": "regression",
     "metric": "rmse",
-    "data_size": "large",
-    "scope_caveats": [
-      {
-        "condition": "task is high-dimensional tabular regression (>50 features) where ensembling linear + tree models is idiomatic (e.g., housing price, tabular regression Kaggle competitions)",
-        "caveat": "Ridge + StandardScaler + alpha tuning is a valid baseline improvement, but if 5+ improve turns pass without attempting to ensemble Ridge with XGBoost/LightGBM/CatBoost, the single-model Ridge path is likely plateauing. On house-prices-advanced-regression-techniques Gemini V1/V4 stuck on Ridge tuning for 7 improve turns and got Kaggle pct 42.91/44.44, while NOMEM (same compute budget) switched to XGBoost+Ridge+Lasso+ElasticNet ensemble at turn 6 and got 78.33. On Ames-style housing competitions, ensembling linear + tree models consistently beats deep Ridge tuning alone.",
-        "source": "house-prices-advanced-regression-techniques Gemini V1/V4 failure (2026-04-20)",
-        "derived_for_tasks": [
-          "house-prices-advanced-regression-techniques"
-        ]
-      }
-    ]
+    "data_size": "large"
   },
   {
     "challenge_name": "playground-series-s4e9",
@@ -21755,17 +21703,7 @@
     "domain": "tabular",
     "task_type": "binary_classification",
     "metric": "auc",
-    "data_size": "medium",
-    "scope_caveats": [
-      {
-        "condition": "evaluation metric is rank-based (ROC-AUC, Gini) AND positive-class rate < 5%",
-        "caveat": "`scale_pos_weight = neg/pos` helped on DontGetKicked (Gini improvement 0.474->0.504) but over-upweights the minority class on datasets with extreme imbalance (<5% positive). For rank-based metrics (AUC, Gini) scale_pos_weight is usually a no-op or harmful because rank metrics are invariant to monotone rescaling. Verify on a small unweighted baseline before committing to scale_pos_weight.",
-        "source": "ieee-fraud-detection Gemini V4 failure (2026-04-20) — pattern shared with GiveMeSomeCredit idx 1094",
-        "derived_for_tasks": [
-          "ieee-fraud-detection"
-        ]
-      }
-    ]
+    "data_size": "medium"
   },
   {
     "challenge_name": "DontGetKicked",
@@ -21985,17 +21923,7 @@
     "domain": "tabular",
     "task_type": "binary_classification",
     "metric": "auc",
-    "data_size": "medium",
-    "scope_caveats": [
-      {
-        "condition": "evaluation metric is ROC-AUC (rank-based) AND positive-class rate < 5% AND submission is to a public leaderboard",
-        "caveat": "`scale_pos_weight = neg/pos` was helpful on GiveMeSomeCredit (~7% pos, moderate imbalance). On IEEE-CIS fraud detection (~3.5% pos, extreme imbalance) the resulting weight is ~28, which over-upweights the minority class and inflates training AUC without generalizing — Gemini V4 ieee-fraud val AUC 0.88 but Kaggle pct 15.09 (vs NOMEM 30.48, -15 pct). For rank-based (AUC) metrics, scale_pos_weight usually does NOT help because AUC is invariant to monotone rescaling of predictions; it helps only when the downstream threshold decision matters. Prefer leaving scale_pos_weight=1 on rank-based metrics and instead addressing imbalance via threshold tuning on the final score, focal loss, or moderate class_weight. Verify by comparing a weighted vs unweighted training fold: if unweighted AUC is within 0.005 of weighted, prefer unweighted.",
-        "source": "ieee-fraud-detection Gemini V4 failure (2026-04-20)",
-        "derived_for_tasks": [
-          "ieee-fraud-detection"
-        ]
-      }
-    ]
+    "data_size": "medium"
   },
   {
     "challenge_name": "GiveMeSomeCredit",
@@ -22215,17 +22143,7 @@
     "domain": "time_series",
     "task_type": "regression",
     "metric": "mae",
-    "data_size": "medium",
-    "scope_caveats": [
-      {
-        "condition": "dataset has many series/groups with limited per-group history (per-tuple rows < 500) OR is synthetic playground data with few years of history",
-        "caveat": "HuberRegressor per-series worked on Walmart (45 stores x 99 depts x multi-year ~= 4455 series, 400+ rows each). On playground-series-s3e19 Gemini fitted per country x store x product HuberRegressor on ~2-year synthetic data (much less per-tuple history) - val SMAPE looked better than NOMEM's LightGBM (11.56 vs 16.71) but Kaggle pct crashed to 18.48 vs NOMEM's 35.01. Per-tuple robust regressors overfit small local histories. For multi-series data with limited per-tuple rows, prefer a single GLOBAL LightGBM/CatBoost that shares statistical strength across series, with series_id as a categorical feature.",
-        "source": "playground-series-s3e19 Gemini V1/V4 failure (2026-04-20)",
-        "derived_for_tasks": [
-          "playground-series-s3e19"
-        ]
-      }
-    ]
+    "data_size": "medium"
   },
   {
     "challenge_name": "walmart-recruiting-store-sales-forecasting",
@@ -23365,17 +23283,7 @@
     "domain": "tabular",
     "task_type": "regression",
     "metric": "other",
-    "data_size": "medium",
-    "scope_caveats": [
-      {
-        "condition": "task involves biological sequence data (protein, DNA, RNA) or molecular structure prediction",
-        "caveat": "Insurance-risk tabular recipes (XGBoost/LightGBM + OneHotEncoding on anonymized categoricals) do NOT transfer to biological sequence/structure tasks. On novozymes-enzyme-stability-prediction Claude V1-V5 consistently landed at Kaggle pct 3-7 vs NOMEM's 24.5 despite applying LightGBM + k-mer/bigram features. For protein mutation stability specifically: skip generic tabular FE, construct features from BLOSUM substitution score (wild-type -> mutant), change in hydrophobicity/volume/polarity, secondary structure context if PDB available, and distance to active site. If no protein-domain memory entry exists in the retrieved block, treat EVERY tabular recipe in memory as weak prior and design features from biochemistry first principles.",
-        "source": "novozymes-enzyme-stability-prediction Claude V4 failure (2026-04-20)",
-        "derived_for_tasks": [
-          "novozymes-enzyme-stability-prediction"
-        ]
-      }
-    ]
+    "data_size": "medium"
   },
   {
     "challenge_name": "liberty-mutual-group-property-inspection-prediction",
