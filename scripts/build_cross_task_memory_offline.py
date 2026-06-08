@@ -318,6 +318,15 @@ def call_summarizer(
         )
     prompt = PROMPT_BY_TYPE[trigger["entry_type"]].format(**fmt_kwargs)
 
+    # GPT-5 / o-series reasoning models reject `max_tokens` and non-default
+    # `temperature`; they need `max_completion_tokens` with a larger budget
+    # (reasoning tokens bill against it, so 200 leaves no room for the insight).
+    is_reasoning = any(m in model.lower() for m in ("gpt-5", "o1", "o3", "o4"))
+    if is_reasoning:
+        extra = dict(max_completion_tokens=2000)
+    else:
+        extra = dict(temperature=0.0, max_tokens=200)
+
     for attempt in range(max_retries):
         try:
             resp = client.chat.completions.create(
@@ -326,10 +335,9 @@ def call_summarizer(
                     {"role": "system", "content": INSIGHT_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.0,
-                max_tokens=200,
+                **extra,
             )
-            text = resp.choices[0].message.content.strip()
+            text = (resp.choices[0].message.content or "").strip()
             return text
         except Exception as e:
             wait = 5 * (attempt + 1)

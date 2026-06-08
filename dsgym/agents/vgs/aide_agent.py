@@ -100,6 +100,11 @@ class AIDEAgent(DSPredictReActAgent):
         # alignment since we don't update the embedding index).
         self.no_cross_memory_write = kwargs.pop("no_cross_memory_write", False)
         self.log_degradation = kwargs.pop("log_degradation", False)
+        # Sticky cross-memory ablation: retrieve once at turn 1 (mixing
+        # draft/improve/debug pools) and inject only into the first turn's
+        # instruction. Turn 2+ get no cross-task memory block.
+        self.sticky_cross_memory = kwargs.pop("sticky_cross_memory", False)
+        self.sticky_top_k = kwargs.pop("sticky_top_k", 15)
         super().__init__(backend, model, **kwargs)
         os.makedirs(self.trajectory_output_dir, exist_ok=True)
         self.cross_task_memory = CrossTaskMemory(memory_path)
@@ -116,12 +121,13 @@ class AIDEAgent(DSPredictReActAgent):
                     )
                     litellm_api_key = os.environ.get("LITELLM_API_KEY", "")
                     openai_api_key = os.environ.get("OPENAI_API_KEY", "")
+                    metadata_model = os.environ.get("DSGYM_METADATA_MODEL", "")
                     if litellm_api_key and openai_api_key:
                         retrieval_log_path = os.environ.get("DSGYM_RETRIEVAL_LOG", "") or None
                         replay_samples_path = os.environ.get("DSGYM_REPLAY_SAMPLES", "") or None
                         opt_out_raw = os.environ.get("DSGYM_OPT_OUT_TASKS", "").strip()
                         opt_out_tasks = [t.strip() for t in opt_out_raw.split(",") if t.strip()] if opt_out_raw else None
-                        self.smart_retriever = SmartRetriever(
+                        sr_kwargs = dict(
                             enriched_json_path=memory_path,
                             embeddings_path=emb_path,
                             litellm_base_url=base_url,
@@ -131,6 +137,9 @@ class AIDEAgent(DSPredictReActAgent):
                             replay_samples_path=replay_samples_path,
                             opt_out_tasks=opt_out_tasks,
                         )
+                        if metadata_model:
+                            sr_kwargs["metadata_model"] = metadata_model
+                        self.smart_retriever = SmartRetriever(**sr_kwargs)
                         print(f"[AIDEAgent] SmartRetriever enabled: {memory_path}")
                         if retrieval_log_path:
                             print(f"[AIDEAgent] retrieval cosines will be logged to: {retrieval_log_path}")
@@ -216,6 +225,25 @@ class AIDEAgent(DSPredictReActAgent):
             )
             task_description = task_description_full[:3000] if self.memory_version == "v6" else task_description_full[:500]
 
+            # Sticky ablation: precompute the one-shot cross-task memory block
+            # by mixing all three action pools, before the turn loop starts.
+            sticky_cross_task_context = ""
+            if (
+                self.sticky_cross_memory
+                and self.smart_retriever is not None
+                and not self.no_cross_memory
+            ):
+                try:
+                    sticky_entries = self.smart_retriever.retrieve_sticky(
+                        current_task_description=task_description,
+                        challenge_name=challenge_name,
+                        top_k=self.sticky_top_k,
+                        pool_size=15,
+                    )
+                    sticky_cross_task_context = self.smart_retriever.format_for_prompt(sticky_entries)
+                except Exception as e:
+                    print(f"[AIDEAgent] retrieve_sticky failed ({e!s}); sticky context empty")
+
             total_tokens = 0
             final_answer = ""
             actual_turns = 0
@@ -241,6 +269,7 @@ class AIDEAgent(DSPredictReActAgent):
                         task_memory=task_memory,
                         last_error_output=last_error_output,
                         challenge_name=challenge_name,
+                        sticky_cross_task_context=sticky_cross_task_context,
                         task_description=task_description,
                     )
 
@@ -951,6 +980,7 @@ class AIDEAgent(DSPredictReActAgent):
         last_error_output: str,
         challenge_name: str = "",
         task_description: str = "",
+        sticky_cross_task_context: str = "",
     ) -> str:
         """Build per-turn instruction based on the selected action."""
         # Build memory section: task-internal memory + cross-task memory
@@ -962,10 +992,22 @@ class AIDEAgent(DSPredictReActAgent):
                 memory_section = "No previous attempts yet."
 
         # Append cross-task memory
-        skip_cross_memory = self.no_cross_memory or (self.no_draft_memory and action == "draft")
+        # Skip on final_submission: that turn serializes the best prior approach,
+        # not a place to introduce new cross-task strategy suggestions.
+        # Sticky ablation: inject precomputed context only at turn 1;
+        # turns 2+ get no cross-task memory regardless of action.
+        skip_cross_memory = (
+            self.no_cross_memory
+            or (self.no_draft_memory and action == "draft")
+            or action == "final_submission"
+            or (self.sticky_cross_memory and step > 1)
+        )
         if not skip_cross_memory:
             cross_task_context = ""
-            if self.smart_retriever is not None:
+            if self.sticky_cross_memory:
+                # turn 1 in sticky mode: use the precomputed one-shot block
+                cross_task_context = sticky_cross_task_context
+            elif self.smart_retriever is not None:
                 try:
                     entries = self.smart_retriever.retrieve(
                         current_task_description=task_description,

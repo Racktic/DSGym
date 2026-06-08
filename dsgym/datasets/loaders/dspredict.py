@@ -101,6 +101,7 @@ class DSPredictDataset(BaseDataset):
             "mle_bench":    ("mle_bench.json",    "dspredict-mle_bench"),
             "easy_train":   ("easy_train.json",   "dspredict-easy"),
             "easy_test":    ("easy_test.json",    "dspredict-easy"),
+            "easy_test_retry": ("easy_test_retry.json", "dspredict-easy"),
             "hard_train":   ("hard_train.json",   "dspredict-hard"),
             "hard_test":    ("hard_test.json",    "dspredict-hard"),
             "hard_test_variance2": ("hard_test_variance2.json", "dspredict-hard"),

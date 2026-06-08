@@ -39,7 +39,7 @@ def add_eval_parser(subparsers):
     
     # Dataset configuration
     parser.add_argument("--dataset", type=str, required=True,
-                       choices=["daeval", "discoverybench", "qrdata", "dabstep", "dspredict-easy", "dspredict-hard", "dspredict-swap", "dspredict-hard-swap", "dspredict-mledojo", "dspredict-hard-rejected", "dspredict-easy-claude-retry", "dspredict-mledojo-remaining", "dspredict-mle-bench", "dspredict-easy-train", "dspredict-easy-test", "dspredict-hard-train", "dspredict-hard-test", "dspredict-hard-test-variance2", "dspredict-hard-test-variance3", "dspredict-hard-train-gpt-remaining", "bio"],
+                       choices=["daeval", "discoverybench", "qrdata", "dabstep", "dspredict-easy", "dspredict-hard", "dspredict-swap", "dspredict-hard-swap", "dspredict-mledojo", "dspredict-hard-rejected", "dspredict-easy-claude-retry", "dspredict-mledojo-remaining", "dspredict-mle-bench", "dspredict-easy-train", "dspredict-easy-test", "dspredict-easy-test-retry", "dspredict-hard-train", "dspredict-hard-test", "dspredict-hard-test-variance2", "dspredict-hard-test-variance3", "dspredict-hard-train-gpt-remaining", "bio"],
                        help="Dataset to evaluate on")
     parser.add_argument("--limit", type=int, default=None,
                        help="Number of samples to evaluate")
@@ -90,6 +90,10 @@ def add_eval_parser(subparsers):
 
     parser.add_argument("--log-degradation", action="store_true", default=False,
                        help="AIDE V5: also log failed improve attempts (score degradation) to cross-task memory")
+    parser.add_argument("--sticky-cross-memory", action="store_true", default=False,
+                       help="AIDE ablation: retrieve cross-task memory once at turn 1 (mixing draft/improve/debug pools) and inject only into the first turn's instruction. Disables per-turn retrieval.")
+    parser.add_argument("--sticky-top-k", type=int, default=15,
+                       help="AIDE sticky ablation: number of cross-task entries to sample from the union of three action pools (default: 15)")
 
     parser.add_argument("--no-think", action="store_true", default=False,
                        help="Disable thinking mode for Qwen3 models (pass enable_thinking=False to chat template)")
@@ -171,6 +175,10 @@ def run_eval(args) -> int:
                 aide_kwargs["no_cross_memory_write"] = True
             if args.log_degradation:
                 aide_kwargs["log_degradation"] = True
+            if args.sticky_cross_memory:
+                aide_kwargs["sticky_cross_memory"] = True
+            if args.sticky_top_k != 15:
+                aide_kwargs["sticky_top_k"] = args.sticky_top_k
             agent = AIDEAgent(
                 backend=args.backend,
                 model=args.model,
@@ -210,7 +218,7 @@ def run_eval(args) -> int:
         dataset_name = args.dataset
         if "dspredict" in dataset_name:
             # Map CLI name to split key: dspredict-mledojo -> mle_dojo
-            _split_map = {"mledojo": "mle_dojo", "mledojo-remaining": "mle_dojo_remaining", "hard-swap": "hard_swap", "hard-rejected": "hard_rejected", "easy-claude-retry": "easy_claude_retry", "mle-bench": "mle_bench", "easy-train": "easy_train", "easy-test": "easy_test", "hard-train": "hard_train", "hard-test": "hard_test", "hard-test-variance2": "hard_test_variance2", "hard-test-variance3": "hard_test_variance3", "hard-train-gpt-remaining": "hard_train_gpt_remaining"}
+            _split_map = {"mledojo": "mle_dojo", "mledojo-remaining": "mle_dojo_remaining", "hard-swap": "hard_swap", "hard-rejected": "hard_rejected", "easy-claude-retry": "easy_claude_retry", "mle-bench": "mle_bench", "easy-train": "easy_train", "easy-test": "easy_test", "easy-test-retry": "easy_test_retry", "hard-train": "hard_train", "hard-test": "hard_test", "hard-test-variance2": "hard_test_variance2", "hard-test-variance3": "hard_test_variance3", "hard-train-gpt-remaining": "hard_train_gpt_remaining"}
             raw_split = dataset_name.split("-", 1)[-1]  # "easy", "hard", "swap", "mledojo"
             dataset_config["split"] = _split_map.get(raw_split, raw_split)
             dataset_name = dataset_name.split("-")[0]

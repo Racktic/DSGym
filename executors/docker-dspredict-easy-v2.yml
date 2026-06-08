@@ -1,23 +1,24 @@
 version: '3.8'
 services:
   executor-000:
-    image: executor-prebuilt
+    image: executor-kaggle
     command: python main.py
     ports:
-    - 60000:8432
+    - 60100:8432
     environment:
     - PORT=8432
     - CONTAINER_ID=0
-    - HOST_PORT=60000
+    - HOST_PORT=60100
     - PYTHONUNBUFFERED=1
     - PYTHONDONTWRITEBYTECODE=1
-    - EXECUTION_TIMEOUT=360
+    - EXECUTION_TIMEOUT=600
     - WORKSPACE_FOLDER=/data
+    - SUBMISSION_DIR=/submission
     restart: unless-stopped
     labels:
     - container.id=0
     - container.port=60000
-    - container.type=executor-prebuilt
+    - container.type=executor-kaggle
     mem_limit: 2G
     cpus: 0.5
     mem_reservation: 512M
@@ -25,24 +26,26 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - ../data/data:/data:ro
+    - ../submissions/container_000:/submission
   executor-001:
-    image: executor-prebuilt
+    image: executor-kaggle
     command: python main.py
     ports:
-    - 60001:8432
+    - 60101:8432
     environment:
     - PORT=8432
     - CONTAINER_ID=1
-    - HOST_PORT=60001
+    - HOST_PORT=60101
     - PYTHONUNBUFFERED=1
     - PYTHONDONTWRITEBYTECODE=1
-    - EXECUTION_TIMEOUT=360
+    - EXECUTION_TIMEOUT=600
     - WORKSPACE_FOLDER=/data
+    - SUBMISSION_DIR=/submission
     restart: unless-stopped
     labels:
     - container.id=1
     - container.port=60001
-    - container.type=executor-prebuilt
+    - container.type=executor-kaggle
     mem_limit: 2G
     cpus: 0.5
     mem_reservation: 512M
@@ -50,24 +53,26 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - ../data/data:/data:ro
+    - ../submissions/container_001:/submission
   executor-002:
-    image: executor-prebuilt
+    image: executor-kaggle
     command: python main.py
     ports:
-    - 60002:8432
+    - 60102:8432
     environment:
     - PORT=8432
     - CONTAINER_ID=2
-    - HOST_PORT=60002
+    - HOST_PORT=60102
     - PYTHONUNBUFFERED=1
     - PYTHONDONTWRITEBYTECODE=1
-    - EXECUTION_TIMEOUT=360
+    - EXECUTION_TIMEOUT=600
     - WORKSPACE_FOLDER=/data
+    - SUBMISSION_DIR=/submission
     restart: unless-stopped
     labels:
     - container.id=2
     - container.port=60002
-    - container.type=executor-prebuilt
+    - container.type=executor-kaggle
     mem_limit: 2G
     cpus: 0.5
     mem_reservation: 512M
@@ -75,24 +80,26 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - ../data/data:/data:ro
+    - ../submissions/container_002:/submission
   executor-003:
-    image: executor-prebuilt
+    image: executor-kaggle
     command: python main.py
     ports:
-    - 60003:8432
+    - 60103:8432
     environment:
     - PORT=8432
     - CONTAINER_ID=3
-    - HOST_PORT=60003
+    - HOST_PORT=60103
     - PYTHONUNBUFFERED=1
     - PYTHONDONTWRITEBYTECODE=1
-    - EXECUTION_TIMEOUT=360
+    - EXECUTION_TIMEOUT=600
     - WORKSPACE_FOLDER=/data
+    - SUBMISSION_DIR=/submission
     restart: unless-stopped
     labels:
     - container.id=3
     - container.port=60003
-    - container.type=executor-prebuilt
+    - container.type=executor-kaggle
     mem_limit: 2G
     cpus: 0.5
     mem_reservation: 512M
@@ -100,24 +107,26 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - ../data/data:/data:ro
+    - ../submissions/container_003:/submission
   executor-004:
-    image: executor-prebuilt
+    image: executor-kaggle
     command: python main.py
     ports:
-    - 60004:8432
+    - 60104:8432
     environment:
     - PORT=8432
     - CONTAINER_ID=4
-    - HOST_PORT=60004
+    - HOST_PORT=60104
     - PYTHONUNBUFFERED=1
     - PYTHONDONTWRITEBYTECODE=1
-    - EXECUTION_TIMEOUT=360
+    - EXECUTION_TIMEOUT=600
     - WORKSPACE_FOLDER=/data
+    - SUBMISSION_DIR=/submission
     restart: unless-stopped
     labels:
     - container.id=4
     - container.port=60004
-    - container.type=executor-prebuilt
+    - container.type=executor-kaggle
     mem_limit: 2G
     cpus: 0.5
     mem_reservation: 512M
@@ -125,24 +134,26 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - ../data/data:/data:ro
+    - ../submissions/container_004:/submission
   executor-005:
-    image: executor-prebuilt
+    image: executor-kaggle
     command: python main.py
     ports:
-    - 60005:8432
+    - 60105:8432
     environment:
     - PORT=8432
     - CONTAINER_ID=5
-    - HOST_PORT=60005
+    - HOST_PORT=60105
     - PYTHONUNBUFFERED=1
     - PYTHONDONTWRITEBYTECODE=1
-    - EXECUTION_TIMEOUT=360
+    - EXECUTION_TIMEOUT=600
     - WORKSPACE_FOLDER=/data
+    - SUBMISSION_DIR=/submission
     restart: unless-stopped
     labels:
     - container.id=5
     - container.port=60005
-    - container.type=executor-prebuilt
+    - container.type=executor-kaggle
     mem_limit: 2G
     cpus: 0.5
     mem_reservation: 512M
@@ -150,24 +161,26 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - ../data/data:/data:ro
+    - ../submissions/container_005:/submission
   executor-006:
-    image: executor-prebuilt
+    image: executor-kaggle
     command: python main.py
     ports:
-    - 60006:8432
+    - 60106:8432
     environment:
     - PORT=8432
     - CONTAINER_ID=6
-    - HOST_PORT=60006
+    - HOST_PORT=60106
     - PYTHONUNBUFFERED=1
     - PYTHONDONTWRITEBYTECODE=1
-    - EXECUTION_TIMEOUT=360
+    - EXECUTION_TIMEOUT=600
     - WORKSPACE_FOLDER=/data
+    - SUBMISSION_DIR=/submission
     restart: unless-stopped
     labels:
     - container.id=6
     - container.port=60006
-    - container.type=executor-prebuilt
+    - container.type=executor-kaggle
     mem_limit: 2G
     cpus: 0.5
     mem_reservation: 512M
@@ -175,24 +188,26 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - ../data/data:/data:ro
+    - ../submissions/container_006:/submission
   executor-007:
-    image: executor-prebuilt
+    image: executor-kaggle
     command: python main.py
     ports:
-    - 60007:8432
+    - 60107:8432
     environment:
     - PORT=8432
     - CONTAINER_ID=7
-    - HOST_PORT=60007
+    - HOST_PORT=60107
     - PYTHONUNBUFFERED=1
     - PYTHONDONTWRITEBYTECODE=1
-    - EXECUTION_TIMEOUT=360
+    - EXECUTION_TIMEOUT=600
     - WORKSPACE_FOLDER=/data
+    - SUBMISSION_DIR=/submission
     restart: unless-stopped
     labels:
     - container.id=7
     - container.port=60007
-    - container.type=executor-prebuilt
+    - container.type=executor-kaggle
     mem_limit: 2G
     cpus: 0.5
     mem_reservation: 512M
@@ -200,16 +215,17 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - ../data/data:/data:ro
+    - ../submissions/container_007:/submission
   manager:
     image: manager-prebuilt
     command: python main.py
     ports:
-    - 5000:5000
+    - 5100:5000
     environment:
     - PORT=5000
     - CONTAINER_CONFIG_PATH=container_config.json
     volumes:
-    - ./container_config.json:/app/container_config.json:ro
+    - ./container_config_dspredict_easy.json:/app/container_config.json:ro
     depends_on:
     - executor-000
     - executor-001

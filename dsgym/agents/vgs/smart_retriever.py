@@ -368,8 +368,43 @@ class SmartRetriever:
         required_type = action_to_type.get(current_action)
         keep_mask = np.zeros(n, dtype=bool)
         for i, e in enumerate(self.entries_raw):
+            # Same-challenge filter, ROUND-AWARE (GECM flywheel / mixed-update setting).
+            #
+            # Original rule was a blanket "exclude every entry whose challenge_name
+            # matches the current task". That kept all single-round / cross-task-
+            # transfer experiments clean: the agent could never read an insight
+            # from a prior run on the exact same competition.
+            #
+            # For multi-round (flywheel) memory — where each round appends new
+            # insights derived from the previous round's runs on these same
+            # competitions — we want a strictly later round to be able to read
+            # what an earlier round learned on the same competition (test-time
+            # continual learning), while still excluding M₀'s same-competition
+            # insights (so the original cross-task-transfer baseline stays
+            # uncontaminated and remains directly comparable).
+            #
+            # This is the entry-level analog of Dynamic Cheatsheet's
+            # M_i = {instances 1..i-1} safeguard: round t may read same-challenge
+            # entries from rounds 1..t-1, but never from M₀ (round 0) and never
+            # from round t itself or later.
+            #
+            # Encoding: each entry carries an integer `round_origin` field.
+            #   round_origin == 0  → from M₀ (base teacher memory)
+            #   round_origin >= 1  → appended by a later (delta) round
+            # We default missing field to 0 so every legacy memory file
+            # (cross_task_memory_teacher_v5_enriched.json, _caveat_enriched.json,
+            # _delta_*_enriched.json) behaves EXACTLY as before — only memory
+            # files that explicitly tag delta-appended entries with
+            # round_origin >= 1 unlock the relaxed same-challenge access.
+            #
+            # The per-task cap (max_per_task, default 2) downstream still applies,
+            # so even when a same-challenge later-round entry is admitted, at
+            # most 2 same-challenge entries can occupy the 15-slot stable pool.
             if e.get("challenge_name", "") == challenge_name and challenge_name:
-                continue  # exclude current task
+                if int(e.get("round_origin", 0)) == 0:
+                    continue  # M₀ same-challenge entry → excluded (all legacy behavior)
+                # else: same-challenge entry from a later round → fall through,
+                # let it compete on cosine and be capped by max_per_task.
             if required_type is not None and e.get("entry_type") != required_type:
                 continue
             d = (e.get("domain") or "other").lower()
@@ -449,6 +484,54 @@ class SmartRetriever:
         with self._cache_lock:
             self._pool_cache[cache_key] = pool
         return pool
+
+    def retrieve_sticky(
+        self,
+        current_task_description: str,
+        challenge_name: str = "",
+        top_k: int = 15,
+        pool_size: int = 15,
+        candidate_pool: int = 60,
+        max_per_task: int = 2,
+        challenge_name_boost: bool = False,
+    ) -> List[MemoryEntry]:
+        """One-shot retrieval used by the `--sticky-cross-memory` ablation.
+
+        Unlike `retrieve()`, this does NOT filter by current action. It builds the
+        three action-specific pools (draft / improve / debug) — each up to
+        `pool_size` after the action-type hard filter — unions their indices, and
+        samples `top_k` entries from the union. This way the agent gets a mix of
+        draft_success / improvement / debug_fix experience injected once at
+        turn 1 (and never again), with the same total content budget as the
+        per-action pool size.
+        """
+        if challenge_name and challenge_name in self.opt_out_tasks:
+            return []
+
+        union: List[int] = []
+        seen: set = set()
+        for action in ("draft", "improve", "debug"):
+            pool = self._build_pool(
+                current_task_description=current_task_description,
+                current_action=action,
+                challenge_name=challenge_name,
+                pool_size=pool_size,
+                candidate_pool=candidate_pool,
+                max_per_task=max_per_task,
+                challenge_name_boost=challenge_name_boost,
+            )
+            for idx in pool:
+                if idx not in seen:
+                    seen.add(idx)
+                    union.append(idx)
+        if not union:
+            return []
+
+        if len(union) > top_k:
+            selected = self._rng.sample(union, top_k)
+        else:
+            selected = union
+        return [MemoryEntry.from_dict(self.entries_raw[i]) for i in selected]
 
     def retrieve(
         self,
